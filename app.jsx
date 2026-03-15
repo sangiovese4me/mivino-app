@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from ‘react’;
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, AlertCircle, Utensils, Camera, Clock, MapPin, TrendingUp, Lightbulb, Wine, LogOut, Menu, X } from ‘lucide-react’;
 
 export default function MiVinoApp() {
