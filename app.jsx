@@ -54,7 +54,7 @@ const addWineManually = () => {
 if (newWine.name.trim()) {
 const dbWine = wineDatabase.find(w => w.name.toLowerCase() === newWine.name.toLowerCase());
 
-```
+
   const wine = {
     id: Math.max(...cellar.map(w => w.id), 0) + 1,
     ...newWine,
@@ -71,7 +71,7 @@ const dbWine = wineDatabase.find(w => w.name.toLowerCase() === newWine.name.toLo
   setNewWine({ name: '', region: '', vintage: new Date().getFullYear(), quantity: 1, purchasePrice: 0 });
   setShowAddWineForm(false);
 }
-```
+
 
 };
 
@@ -87,7 +87,7 @@ const mockWines = [
 const randomWine = mockWines[Math.floor(Math.random() * mockWines.length)];
 const dbWine = wineDatabase.find(w => w.name.toLowerCase() === randomWine.name.toLowerCase());
 
-```
+
   const wine = {
     id: Math.max(...cellar.map(w => w.id), 0) + 1,
     name: randomWine.name,
@@ -117,7 +117,7 @@ const dbWine = wineDatabase.find(w => w.name.toLowerCase() === randomWine.name.t
   });
   setTimeout(() => setInsights(null), 3000);
 }, 2000);
-```
+
 
 };
 
@@ -137,7 +137,7 @@ const agingWines = cellar.filter(w => w.drinkStatus === 'aging').length;
 const totalValue = cellar.reduce((sum, w) => sum + (w.currentValue * w.quantity), 0);
 const gainLoss = cellar.reduce((sum, w) => sum + ((w.currentValue - w.purchasePrice) * w.quantity), 0);
 
-```
+
 setInsights({
   title: '💡 Smart Insights About Your Collection',
   items: [
@@ -149,7 +149,7 @@ setInsights({
   ]
 });
 setTimeout(() => setInsights(null), 5000);
-```
+
 
 };
 
@@ -187,7 +187,7 @@ return (
 <h1 className="text-3xl font-bold text-white">MiVino</h1>
 </div>
 
-```
+
       <p className="text-center text-purple-300 mb-8 text-sm">
         Your Personal Wine Cellar Manager
       </p>
@@ -229,7 +229,7 @@ return (
     </div>
   </div>
 );
-```
+
 
 }
 
