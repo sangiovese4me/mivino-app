@@ -601,7 +601,6 @@ className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 t
     </div>
   )}
 </div>
-```
 
 );
 }
