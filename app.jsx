@@ -1,3 +1,4 @@
+"use client";
 import React, { useState } from ‘react’;
 import { Plus, Trash2, AlertCircle, Utensils, Camera, LogOut, Menu, X } from ‘lucide-react’;
 
