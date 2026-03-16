@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, AlertCircle, Utensils, Camera, Clock, MapPin, TrendingUp, Lightbulb, Wine, LogOut, Menu, X } from ‘lucide-react’;
+import { Plus, Trash2, AlertCircle, Utensils, Camera, Clock, MapPin, TrendingUp, Lightbulb, Wine, LogOut, Menu, X } from 'lucide-react';
 
 export default function MiVinoApp() {
 const [isLoggedIn, setIsLoggedIn] = useState(false);
 const [currentUser, setCurrentUser] = useState(null);
-const [email, setEmail] = useState(’’);
-const [password, setPassword] = useState(’’);
+const [email, setEmail] = useState('');
+const [password, setPassword] = useState('');
 const [cellar, setCellar] = useState([]);
 const [selectedWine, setSelectedWine] = useState(null);
 const [showAddWineForm, setShowAddWineForm] = useState(false);
@@ -15,8 +15,8 @@ const [insights, setInsights] = useState(null);
 const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 const [newWine, setNewWine] = useState({
-name: ‘’,
-region: ‘’,
+name: '',
+region: '',
 vintage: new Date().getFullYear(),
 quantity: 1,
 purchasePrice: 0,
@@ -24,11 +24,11 @@ purchasePrice: 0,
 
 // Wine database (sample)
 const wineDatabase = [
-{ name: ‘Caymus Vineyards Cabernet Sauvignon’, region: ‘Napa Valley, CA’, peakStart: 2024, peakEnd: 2035, pairings: [‘Ribeye Steak’, ‘Lamb Chops’, ‘Dark Chocolate’] },
-{ name: ‘Cloudy Bay Sauvignon Blanc’, region: ‘Marlborough, NZ’, peakStart: 2023, peakEnd: 2026, pairings: [‘Seafood Pasta’, ‘Grilled Fish’, ‘Salad’] },
-{ name: ‘Barolo Riserva’, region: ‘Piedmont, Italy’, peakStart: 2025, peakEnd: 2040, pairings: [‘Beef Braised in Wine’, ‘Truffle Risotto’, ‘Hard Cheeses’] },
-{ name: ‘Sancerre’, region: ‘Loire Valley, France’, peakStart: 2022, peakEnd: 2024, pairings: [‘Goat Cheese’, ‘Asparagus’, ‘Shellfish’] },
-{ name: ‘Opus One Cabernet Sauvignon’, region: ‘Napa Valley, CA’, peakStart: 2025, peakEnd: 2045, pairings: [‘Prime Rib’, ‘Lamb’, ‘Truffle Pasta’] },
+{ name: 'Caymus Vineyards Cabernet Sauvignon', region: 'Napa Valley, CA', peakStart: 2024, peakEnd: 2035, pairings: ['Ribeye Steak', 'Lamb Chops', 'Dark Chocolate'] },
+{ name: 'Cloudy Bay Sauvignon Blanc', region: 'Marlborough, NZ', peakStart: 2023, peakEnd: 2026, pairings: ['Seafood Pasta', 'Grilled Fish', 'Salad'] },
+{ name: 'Barolo Riserva', region: 'Piedmont, Italy', peakStart: 2025, peakEnd: 2040, pairings: ['Beef Braised in Wine', 'Truffle Risotto', 'Hard Cheeses'] },
+{ name: 'Sancerre', region: 'Loire Valley, France', peakStart: 2022, peakEnd: 2024, pairings: ['Goat Cheese', 'Asparagus', 'Shellfish'] },
+{ name: 'Opus One Cabernet Sauvignon', region: 'Napa Valley, CA', peakStart: 2025, peakEnd: 2045, pairings: ['Prime Rib', 'Lamb', 'Truffle Pasta'] },
 ];
 
 // Login handler
@@ -36,9 +36,9 @@ const handleLogin = (e) => {
 e.preventDefault();
 if (email && password) {
 setIsLoggedIn(true);
-setCurrentUser(email.split(’@’)[0]);
-setEmail(’’);
-setPassword(’’);
+setCurrentUser(email.split('@')[0]);
+setEmail('');
+setPassword('');
 }
 };
 
@@ -80,9 +80,9 @@ const handlePhotoCapture = () => {
 setIsScanning(true);
 setTimeout(() => {
 const mockWines = [
-{ name: ‘Opus One Cabernet Sauvignon’, vintage: 2020, purchasePrice: 150 },
-{ name: ‘Château Margaux’, vintage: 2018, purchasePrice: 200 },
-{ name: ‘Screaming Eagle Cabernet’, vintage: 2019, purchasePrice: 180 },
+{ name: 'Opus One Cabernet Sauvignon', vintage: 2020, purchasePrice: 150 },
+{ name: 'Château Margaux', vintage: 2018, purchasePrice: 200 },
+{ name: 'Screaming Eagle Cabernet', vintage: 2019, purchasePrice: 180 },
 ];
 const randomWine = mockWines[Math.floor(Math.random() * mockWines.length)];
 const dbWine = wineDatabase.find(w => w.name.toLowerCase() === randomWine.name.toLowerCase());
@@ -124,16 +124,16 @@ const dbWine = wineDatabase.find(w => w.name.toLowerCase() === randomWine.name.t
 // Determine drink status
 const getDrinkStatus = (peakStart, peakEnd) => {
 const currentYear = new Date().getFullYear();
-if (currentYear < peakStart - 1) return ‘aging’;
-if (currentYear >= peakStart && currentYear <= peakEnd) return ‘peak’;
-if (currentYear > peakEnd - 2 && currentYear <= peakEnd) return ‘drinking-now’;
-return ‘past-peak’;
+if (currentYear < peakStart - 1) return 'aging';
+if (currentYear >= peakStart && currentYear <= peakEnd) return 'peak';
+if (currentYear > peakEnd - 2 && currentYear <= peakEnd) return 'drinking-now';
+return 'past-peak';
 };
 
 // Generate insights
 const generateInsights = () => {
-const drinkingNow = cellar.filter(w => w.drinkStatus === ‘drinking-now’ || w.drinkStatus === ‘peak’).length;
-const agingWines = cellar.filter(w => w.drinkStatus === ‘aging’).length;
+const drinkingNow = cellar.filter(w => w.drinkStatus === 'drinking-now' || w.drinkStatus === 'peak').length;
+const agingWines = cellar.filter(w => w.drinkStatus === 'aging').length;
 const totalValue = cellar.reduce((sum, w) => sum + (w.currentValue * w.quantity), 0);
 const gainLoss = cellar.reduce((sum, w) => sum + ((w.currentValue - w.purchasePrice) * w.quantity), 0);
 
@@ -154,23 +154,23 @@ setTimeout(() => setInsights(null), 5000);
 };
 
 // Stats calculation
-const drinkingNow = cellar.filter(w => w.drinkStatus === ‘drinking-now’ || w.drinkStatus === ‘peak’).length;
+const drinkingNow = cellar.filter(w => w.drinkStatus === 'drinking-now' || w.drinkStatus === 'peak').length;
 const totalValue = cellar.reduce((sum, w) => sum + (w.currentValue * w.quantity), 0);
 const gainLoss = cellar.reduce((sum, w) => sum + ((w.currentValue - w.purchasePrice) * w.quantity), 0);
 
 // Helpers
 const getStatusColor = (status) => {
-if (status === ‘drinking-now’) return ‘bg-red-100 text-red-800 border-red-300’;
-if (status === ‘peak’) return ‘bg-green-100 text-green-800 border-green-300’;
-if (status === ‘aging’) return ‘bg-blue-100 text-blue-800 border-blue-300’;
-return ‘bg-gray-100 text-gray-800 border-gray-300’;
+if (status === 'drinking-now') return 'bg-red-100 text-red-800 border-red-300';
+if (status === 'peak') return 'bg-green-100 text-green-800 border-green-300';
+if (status === 'aging') return 'bg-blue-100 text-blue-800 border-blue-300';
+return 'bg-gray-100 text-gray-800 border-gray-300';
 };
 
 const getStatusLabel = (status) => {
-if (status === ‘drinking-now’) return ‘🚨 DRINK NOW’;
-if (status === ‘peak’) return ‘✓ Peak’;
-if (status === ‘aging’) return ‘⏳ Aging’;
-return ‘⏭️ Past Peak’;
+if (status === 'drinking-now') return '🚨 DRINK NOW';
+if (status === 'peak') return '✓ Peak';
+if (status === 'aging') return '⏳ Aging';
+return '⏭️ Past Peak';
 };
 
 const removeWine = (id) => {
