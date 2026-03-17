@@ -15,26 +15,10 @@ function isInPeakWindow(wine) {
 }
 
 async function fetchWineInfo(wineName, vintage) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('/api/wine-info', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [
-        {
-          role: 'user',
-          content: `You are a sommelier. For the wine "${wineName}" vintage ${vintage}, respond ONLY with a JSON object (no markdown, no backticks) with these exact keys:
-{
-  "region": "string - region/appellation of origin",
-  "tastingNotes": "string - 2-3 sentence tasting profile",
-  "foodPairings": ["food1", "food2", "food3"],
-  "peakWindow": { "start": number, "end": number },
-  "peakSummary": "string - one sentence about when to drink"
-}`
-        }
-      ]
-    })
+    body: JSON.stringify({ wineName, vintage })
   });
   const data = await response.json();
   const text = data.content.map(i => i.text || '').join('');
