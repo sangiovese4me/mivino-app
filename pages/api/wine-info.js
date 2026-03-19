@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -28,9 +28,4 @@ export default async function handler(req, res) {
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const clean = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
-    res.status(200).json({ content: [{ text: JSON.stringify(parsed) }] });
-  } catch (e) {
-    console.error('Error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-}
+    res.status(200).
