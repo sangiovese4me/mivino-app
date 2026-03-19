@@ -1,13 +1,13 @@
 "use client";
- 
-import React, { useState, useEffect } from 'react';
-import { Trash2, ChevronDown, ChevronUp, Loader } from 'lucide-react';
- 
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Trash2, ChevronDown, ChevronUp, Loader, Camera } from 'lucide-react';
+
 // NOTE: Authentication is client-side only and is not production-ready.
 // Replace handleLogin with a real API call before deploying.
- 
+
 const currentYear = new Date().getFullYear();
- 
+
 const WINE_TYPES = {
   red:      { label: 'Red',      color: '#5c1a2e', bg: '#f5eef0', border: '#e0c8cf' },
   white:    { label: 'White',    color: '#8a7a30', bg: '#faf8e8', border: '#ddd8a0' },
@@ -15,7 +15,7 @@ const WINE_TYPES = {
   rose:     { label: 'Rosé',     color: '#b85c78', bg: '#fdf0f3', border: '#f0b8c8' },
   orange:   { label: 'Orange',   color: '#c47830', bg: '#fdf6ee', border: '#f0d0a0' },
 };
- 
+
 const C = {
   burgundy: '#5c1a2e',
   cream: '#faf7f5',
@@ -29,13 +29,13 @@ const C = {
   sageBg: 'rgba(122,158,126,0.12)',
   sageBorder: 'rgba(122,158,126,0.3)',
 };
- 
+
 function isInPeakWindow(wine) {
   if (!wine.aiData?.peakWindow) return false;
   const { start, end } = wine.aiData.peakWindow;
   return currentYear >= start && currentYear <= end;
 }
- 
+
 async function fetchWineInfo(wineName, vintage) {
   const response = await fetch('/api/wine-info', {
     method: 'POST',
@@ -47,8 +47,7 @@ async function fetchWineInfo(wineName, vintage) {
   const clean = text.replace(/```json|```/g, '').trim();
   return JSON.parse(clean);
 }
- 
-// Detect wine type from AI data or name
+
 function detectWineType(wineName, aiData) {
   const type = (aiData?.wineType || '').toLowerCase();
   const name = wineName.toLowerCase();
@@ -61,7 +60,7 @@ function detectWineType(wineName, aiData) {
       name.includes('pinot grigio') || name.includes('viognier') || name.includes('albarino') || name.includes('gewurz')) return 'white';
   return 'red';
 }
- 
+
 export default function MiVinoApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
@@ -76,25 +75,28 @@ export default function MiVinoApp() {
   const [newWine, setNewWine] = useState({ name: '', vintage: 2020, price: 0 });
   const [expandedWine, setExpandedWine] = useState(null);
   const [editingType, setEditingType] = useState(null);
- 
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const cameraInputRef = useRef(null);
+
   useEffect(() => {
     try { localStorage.setItem('mivino_wines', JSON.stringify(wines)); } catch {}
   }, [wines]);
- 
+
   useEffect(() => {
     try {
       const savedEmail = localStorage.getItem('mivino_email');
       if (savedEmail) { setEmail(savedEmail); setIsLoggedIn(true); }
     } catch {}
   }, []);
- 
+
   const handleLogin = () => {
     if (email && password) {
       setIsLoggedIn(true);
       try { localStorage.setItem('mivino_email', email); } catch {}
     }
   };
- 
+
   const handleAddWine = async () => {
     if (!newWine.name) return;
     const vintage = parseInt(newWine.vintage);
@@ -115,38 +117,87 @@ export default function MiVinoApp() {
       setWines(prev => prev.map(w => w.id === id ? { ...w, aiLoading: false, aiError: true } : w));
     }
   };
- 
-  // TODO: Replace with real label-scanning logic
-  const handleScanWine = async () => {
-    const randomWines = ['Cabernet Sauvignon', 'Sauvignon Blanc', 'Pinot Noir'];
-    const name = randomWines[Math.floor(Math.random() * randomWines.length)];
-    const vintage = 2020;
-    const id = Date.now();
-    const guessedType = detectWineType(name, null);
-    setWines(prev => [...prev, { name, vintage, price: 50, id, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
-    setExpandedWine(id);
+
+  const handleScanLabel = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setScanError('');
+    setScanning(true);
+
     try {
-      const aiData = await fetchWineInfo(name, vintage);
-      const aiType = detectWineType(name, aiData);
-      setWines(prev => prev.map(w => w.id === id ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
-    } catch {
-      setWines(prev => prev.map(w => w.id === id ? { ...w, aiLoading: false, aiError: true } : w));
+      // Convert image to base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // Send to scan-label API route
+      const response = await fetch('/api/scan-label', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64 })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        setScanError(data.error);
+        setScanning(false);
+        return;
+      }
+
+      // Add wine with scanned info
+      const { wineName, vintage } = data;
+      const id = Date.now();
+      const guessedType = detectWineType(wineName, null);
+
+      setWines(prev => [...prev, {
+        name: wineName,
+        vintage,
+        price: 0,
+        id,
+        wineType: guessedType,
+        aiData: null,
+        aiLoading: true,
+        aiError: false
+      }]);
+      setExpandedWine(id);
+      setScanning(false);
+
+      // Fetch AI wine info
+      try {
+        const aiData = await fetchWineInfo(wineName, vintage);
+        const aiType = detectWineType(wineName, aiData);
+        setWines(prev => prev.map(w => w.id === id ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
+      } catch {
+        setWines(prev => prev.map(w => w.id === id ? { ...w, aiLoading: false, aiError: true } : w));
+      }
+
+    } catch (err) {
+      setScanError('Could not process image. Please try again.');
+      setScanning(false);
     }
+
+    // Reset file input so same photo can be retried
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
- 
+
   const handleRemoveWine = (id) => {
     setWines(wines.filter(w => w.id !== id));
     if (expandedWine === id) setExpandedWine(null);
   };
- 
+
   const handleChangeType = (id, type) => {
     setWines(prev => prev.map(w => w.id === id ? { ...w, wineType: type } : w));
     setEditingType(null);
   };
- 
+
   const peakCount = wines.filter(isInPeakWindow).length;
   const totalValue = wines.reduce((sum, w) => sum + (w.price || 0), 0);
- 
+
   const inputStyle = {
     width: '100%',
     padding: '12px 14px',
@@ -159,7 +210,7 @@ export default function MiVinoApp() {
     boxSizing: 'border-box',
     outline: 'none',
   };
- 
+
   if (!isLoggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -177,11 +228,21 @@ export default function MiVinoApp() {
       </div>
     );
   }
- 
+
   return (
     <div style={{ minHeight: '100vh', background: C.cream, fontFamily: 'system-ui, sans-serif' }}>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
- 
+
+      {/* Hidden camera input */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleScanLabel}
+        style={{ display: 'none' }}
+      />
+
       {/* Header */}
       <div style={{ background: C.white, padding: '48px 20px 20px', borderBottom: `1px solid ${C.borderLight}` }}>
         <div style={{ maxWidth: '500px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -198,9 +259,9 @@ export default function MiVinoApp() {
           </button>
         </div>
       </div>
- 
+
       <div style={{ padding: '20px 16px', maxWidth: '500px', margin: '0 auto' }}>
- 
+
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
           {[
@@ -214,25 +275,37 @@ export default function MiVinoApp() {
             </div>
           ))}
         </div>
- 
+
         {/* Action Buttons */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
           <button onClick={() => setShowAddForm(true)} style={{ padding: '14px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '12px', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}>
             + Add Wine
           </button>
-          <button onClick={handleScanWine} style={{ padding: '14px', background: C.white, color: C.burgundy, border: `1px solid ${C.border}`, borderRadius: '12px', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}>
-            Scan Label
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={scanning}
+            style={{ padding: '14px', background: C.white, color: scanning ? C.muted : C.burgundy, border: `1px solid ${C.border}`, borderRadius: '12px', fontWeight: '500', fontSize: '14px', cursor: scanning ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          >
+            {scanning ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={14} />}
+            {scanning ? 'Scanning...' : 'Scan Label'}
           </button>
         </div>
- 
+
+        {/* Scan Error */}
+        {scanError && (
+          <div style={{ background: '#fdf0f0', border: '1px solid #f0c8c8', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px' }}>
+            <p style={{ margin: 0, color: '#b91c1c', fontSize: '13px' }}>{scanError}</p>
+          </div>
+        )}
+
         {/* Collection Label */}
         <p style={{ fontSize: '11px', letterSpacing: '0.1em', color: C.muted, margin: '0 0 12px', textTransform: 'uppercase' }}>Collection</p>
- 
+
         {/* Wine List */}
         {wines.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: C.muted }}>
             <p style={{ fontSize: '16px', margin: '0 0 6px', color: C.burgundy, fontWeight: '500' }}>Your cellar is empty</p>
-            <p style={{ fontSize: '13px', margin: 0 }}>Add or scan wines to get started</p>
+            <p style={{ fontSize: '13px', margin: 0 }}>Add a wine manually or scan a label to get started</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '8px' }}>
@@ -241,7 +314,7 @@ export default function MiVinoApp() {
               const isExpanded = expandedWine === wine.id;
               const wineType = WINE_TYPES[wine.wineType || 'red'];
               const isEditingThisType = editingType === wine.id;
- 
+
               return (
                 <div key={wine.id} style={{ background: C.white, borderRadius: '16px', border: `1px solid ${isPeak ? C.sageBorder : C.borderLight}`, overflow: 'hidden' }}>
                   <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -254,7 +327,7 @@ export default function MiVinoApp() {
                           </span>
                         )}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <p style={{ margin: 0, color: C.muted, fontSize: '12px' }}>
                           {wine.vintage}{wine.aiData?.region ? ` · ${wine.aiData.region}` : ''}
                         </p>
@@ -265,8 +338,7 @@ export default function MiVinoApp() {
                           {wineType.label}
                         </button>
                       </div>
- 
-                      {/* Type Selector */}
+
                       {isEditingThisType && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
                           {Object.entries(WINE_TYPES).map(([key, t]) => (
@@ -291,7 +363,7 @@ export default function MiVinoApp() {
                       </button>
                     </div>
                   </div>
- 
+
                   {isExpanded && (
                     <div style={{ borderTop: `1px solid ${C.borderLight}`, padding: '16px' }}>
                       {wine.aiLoading && (
@@ -335,7 +407,7 @@ export default function MiVinoApp() {
           </div>
         )}
       </div>
- 
+
       {/* Add Wine Modal */}
       {showAddForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(92,26,46,0.3)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000 }}>
