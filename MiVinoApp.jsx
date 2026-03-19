@@ -126,13 +126,28 @@ export default function MiVinoApp() {
     setScanning(true);
 
     try {
-      // Convert image to base64
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+     // Resize and compress image before sending
+const base64 = await new Promise((resolve, reject) => {
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const maxSize = 1024;
+    let { width, height } = img;
+    if (width > height) {
+      if (width > maxSize) { height = (height * maxSize) / width; width = maxSize; }
+    } else {
+      if (height > maxSize) { width = (width * maxSize) / height; height = maxSize; }
+    }
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+    URL.revokeObjectURL(url);
+    resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+  };
+  img.onerror = reject;
+  img.src = url;
+});
 
       // Send to scan-label API route
       const response = await fetch('/api/scan-label', {
