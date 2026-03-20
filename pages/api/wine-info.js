@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is not set' });
   }
 
-  const regionHint = region ? `, from ${region}` : '';
+  const regionHint = region ? `. The wine is from ${region} — use this exact region, do not substitute with a different region` : '';
 
   const prompt = `You are a sommelier. For the wine "${wineName}" vintage ${vintage}${regionHint}, respond ONLY with this exact JSON structure, no other keys, no markdown, no backticks, no extra fields:
 {"region":"string - use provided region if given, otherwise best known region","tastingNotes":"string - 2-3 sentences combining aroma and palate in plain prose","foodPairings":["food1","food2","food3"],"peakWindow":{"start":2024,"end":2030},"peakSummary":"string - one sentence about when to drink"}`;
