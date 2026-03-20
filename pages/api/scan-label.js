@@ -63,4 +63,16 @@ export default async function handler(req, res) {
       }
     );
 
-    c
+    const geminiData = await geminiResponse.json();
+    console.log('Gemini response:', JSON.stringify(geminiData));
+
+    const geminiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const clean = geminiText.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    res.status(200).json(parsed);
+  } catch (e) {
+    console.error('Scan error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
