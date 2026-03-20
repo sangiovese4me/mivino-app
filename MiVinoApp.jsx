@@ -184,7 +184,7 @@ const base64 = await new Promise((resolve, reject) => {
 
       // Fetch AI wine info
       try {
-        const aiData = await fetchWineInfo(wineName, vintage);
+        const aiData = await fetchWineInfo(wineName, vintage, region);
         const aiType = detectWineType(wineName, aiData);
         setWines(prev => prev.map(w => w.id === id ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
       } catch {
