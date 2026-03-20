@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `From this wine label text, extract the wine name and vintage year. Respond ONLY with a JSON object (no markdown, no backticks): {"wineName": "string", "vintage": number}. If you cannot determine the vintage, use ${new Date().getFullYear()}. Label text: ${extractedText}`
+              text: `From this wine label text, extract the wine name, vintage year, and region/appellation if visible. Respond ONLY with a JSON object (no markdown, no backticks): {"wineName": "string", "vintage": number, "region": "string or empty string"}. Label text: ${extractedText}`
             }]
           }]
         })
