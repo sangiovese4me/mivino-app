@@ -7,10 +7,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is not set' });
   }
 
-  const prompt = `You are a sommelier. For the wine "${wineName}" vintage ${vintage}${region ? `, from ${region}` : ''}, respond ONLY with JSON...`
+  const regionHint = region ? `, from ${region}` : '';
+
+  const prompt = `You are a sommelier. For the wine "${wineName}" vintage ${vintage}${regionHint}, respond ONLY with this exact JSON structure, no other keys, no markdown, no backticks, no extra fields:
+{"region":"string - use provided region if given, otherwise best known region","tastingNotes":"string - 2-3 sentences combining aroma and palate in plain prose","foodPairings":["food1","food2","food3"],"peakWindow":{"start":2024,"end":2030},"peakSummary":"string - one sentence about when to drink"}`;
+
   try {
     const response = await fetch(
-     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
