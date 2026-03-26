@@ -1,6 +1,6 @@
 import dynamic from 'next/dynamic'
 
-const MiVinoApp = dynamic(() => import('../MiVinoApp'), {
+const MiVinoApp = dynamic(() => import('../app'), {
   ssr: false,
 })
 
