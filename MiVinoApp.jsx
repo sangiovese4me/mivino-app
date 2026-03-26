@@ -371,11 +371,23 @@ export default function MiVinoApp() {
       {/* Header */}
       <div style={{ background: C.white, padding: '48px 20px 20px', borderBottom: `1px solid ${C.borderLight}` }}>
         <div style={{ maxWidth: '500px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div>
-            <p style={{ color: C.muted, fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 4px' }}>Your Cellar</p>
-            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '500', color: C.burgundy }}>MiVino</h1>
-            <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{email.split('@')[0]} · {wines.length} {wines.length === 1 ? 'bottle' : 'bottles'}</p>
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <svg width="56" height="44" viewBox="0 0 56 44" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="28" cy="6" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+              <circle cx="14" cy="22" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+              <circle cx="28" cy="22" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+              <circle cx="42" cy="22" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+              <circle cx="0" cy="38" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+              <circle cx="14" cy="38" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+              <circle cx="28" cy="38" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+              <circle cx="42" cy="38" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+              <circle cx="56" cy="38" r="4" fill="none" stroke="#5c1a2e" strokeWidth="1.1"/>
+            </svg>
+            <div>
+              <p style={{ color: C.muted, fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 4px' }}>Your Cellar</p>
+              <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '500', color: C.burgundy }}>MiVino</h1>
+              <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{email.split('@')[0]} · {wines.length} {wines.length === 1 ? 'bottle' : 'bottles'}</p>
+            </div>
           <button
             onClick={() => { setIsLoggedIn(false); setWines([]); setEmail(''); setPassword(''); try { localStorage.removeItem('mivino_email'); } catch {} }}
             style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: '12px', padding: '6px 12px', borderRadius: '8px' }}
