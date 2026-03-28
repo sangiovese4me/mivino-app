@@ -1,9 +1,9 @@
-import dynamic from 'next/dynamic'
+import dynamic from ‘next/dynamic’
 
-const MiVinoApp = dynamic(() => import('../app'), {
-  ssr: false,
+const MiVinoApp = dynamic(() => import(’../MiVinoApp’), {
+ssr: false,
 })
 
 export default function Home() {
-  return <MiVinoApp />
+return <MiVinoApp />
 }
