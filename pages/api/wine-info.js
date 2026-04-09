@@ -3,8 +3,12 @@ export default async function handler(req, res) {
 
   const { wineName, vintage, region } = req.body;
 
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not set' });
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({
+      error:
+        'No Gemini API key. Set GEMINI_API_KEY in .env.local (or Vercel), save, restart the dev server.'
+    });
   }
 
   const regionHint = region ? `. The wine is from ${region} — use this exact region, do not substitute with a different region` : '';
@@ -14,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,7 +29,15 @@ export default async function handler(req, res) {
     console.log('Gemini response:', JSON.stringify(data));
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const clean = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
+    let parsed;
+    try {
+      parsed = JSON.parse(clean);
+    } catch {
+      const start = clean.indexOf('{');
+      const end = clean.lastIndexOf('}');
+      if (start === -1 || end <= start) throw new Error('Could not parse wine details from the model.');
+      parsed = JSON.parse(clean.slice(start, end + 1));
+    }
     res.status(200).json({ content: [{ text: JSON.stringify(parsed) }] });
   } catch (e) {
     console.error('Error:', e.message);

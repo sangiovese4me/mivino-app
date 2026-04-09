@@ -36,10 +36,30 @@ async function fetchWineInfo(wineName, vintage, region = '') {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ wineName, vintage, region })
   });
-  const data = await response.json();
-  const text = data.content.map(i => i.text || '').join('');
+  const raw = await response.text();
+  let data;
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error('Wine info response was not valid JSON.');
+  }
+  if (!response.ok || data.error) {
+    throw new Error(typeof data.error === 'string' ? data.error : `Wine info failed (${response.status})`);
+  }
+  const parts = data.content;
+  if (!Array.isArray(parts)) {
+    throw new Error('Unexpected wine info response.');
+  }
+  const text = parts.map(i => i.text || '').join('');
   const clean = text.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  try {
+    return JSON.parse(clean);
+  } catch {
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if (start !== -1 && end > start) return JSON.parse(clean.slice(start, end + 1));
+    throw new Error('Could not parse wine details.');
+  }
 }
 
 function detectWineType(wineName, aiData) {
@@ -124,31 +144,142 @@ function CameraViewfinder({ onCapture, onClose, onFallback }) {
     };
   }, []);
 
+  const shutterStyle = {
+    width: '96px',
+    height: '96px',
+    minWidth: '96px',
+    minHeight: '96px',
+    borderRadius: '50%',
+    padding: 0,
+    border: '5px solid rgba(255,255,255,0.55)',
+    background: 'transparent',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+  };
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 2000, display: 'flex', flexDirection: 'column' }}>
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '48px 16px 16px', display: 'flex', justifyContent: 'space-between', zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)' }}>
-        <p style={{ color: '#fff', fontSize: '14px', margin: 0 }}>Point camera at wine label</p>
-        <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer' }}>
-          <X size={18} />
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        paddingTop: 'max(16px, env(safe-area-inset-top, 0px))',
+        paddingBottom: '12px',
+        paddingLeft: 'max(16px, env(safe-area-inset-left, 0px))',
+        paddingRight: 'max(16px, env(safe-area-inset-right, 0px))',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: 12,
+        zIndex: 10,
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 70%, transparent 100%)',
+      }}>
+        <p style={{ color: '#fff', fontSize: '15px', fontWeight: 600, margin: 0, lineHeight: 1.35, textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+          Point at the label — then tap the white button below
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close camera"
+          style={{
+            flexShrink: 0,
+            background: 'rgba(255,255,255,0.25)',
+            border: 'none',
+            color: '#fff',
+            width: '44px',
+            height: '44px',
+            minWidth: '44px',
+            minHeight: '44px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation',
+          }}
+        >
+          <X size={22} />
         </button>
       </div>
-      <video ref={videoRef} autoPlay playsInline muted style={{ flex: 1, objectFit: 'cover', width: '100%' }} />
+      <video ref={videoRef} autoPlay playsInline muted style={{ flex: 1, minHeight: 0, objectFit: 'cover', width: '100%' }} />
       {!ready && !error && (
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
           <Loader size={32} style={{ color: '#fff', animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
           <p style={{ color: '#fff', fontSize: '14px', margin: 0 }}>Starting camera...</p>
         </div>
       )}
-      <div style={{ padding: '24px 24px 48px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' }}>
-        {ready && (
-          <button onClick={() => { const base64 = captureFrame(videoRef.current); if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); onCapture(base64); }} style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#fff', border: '4px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#fff', border: '2px solid #ddd' }} />
+      <div style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 20,
+        paddingTop: '32px',
+        paddingLeft: 'max(20px, env(safe-area-inset-left, 0px))',
+        paddingRight: 'max(20px, env(safe-area-inset-right, 0px))',
+        paddingBottom: 'max(20px, calc(12px + env(safe-area-inset-bottom, 0px)))',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '14px',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.65) 45%, transparent 100%)',
+        pointerEvents: 'none',
+      }}>
+        <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%' }}>
+          {ready && (
+            <>
+              <p style={{ color: '#fff', fontSize: '17px', fontWeight: 700, margin: 0, letterSpacing: '0.02em' }}>Capture</p>
+              <button
+                type="button"
+                aria-label="Capture label photo"
+                onClick={() => {
+                  const base64 = captureFrame(videoRef.current);
+                  if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+                  onCapture(base64);
+                }}
+                style={shutterStyle}
+              >
+                <span style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '50%',
+                  background: '#fff',
+                  border: '3px solid rgba(0,0,0,0.08)',
+                  display: 'block',
+                }} />
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={onFallback}
+            style={{
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.45)',
+              color: '#fff',
+              borderRadius: '24px',
+              padding: '12px 24px',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              minHeight: '48px',
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+            }}
+          >
+            Upload photo instead
           </button>
-        )}
-        <button onClick={onFallback} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.4)', color: 'rgba(255,255,255,0.8)', borderRadius: '20px', padding: '8px 20px', fontSize: '12px', cursor: 'pointer' }}>
-          Upload instead
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -201,22 +332,49 @@ export default function MiVinoApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: base64 })
       });
-      const data = await response.json();
-      if (data.error) { setScanError(data.error); setScanning(false); return; }
+      const raw = await response.text();
+      let data;
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        setScanError(
+          response.status === 413
+            ? 'Photo is too large for the server. Try “Upload” with a slightly smaller image, or lower camera quality.'
+            : 'Server returned an invalid response. Check the terminal running npm run dev for errors.'
+        );
+        setScanning(false);
+        return;
+      }
+      if (data.error) {
+        setScanError(data.error);
+        setScanning(false);
+        return;
+      }
+      if (!response.ok) {
+        setScanError(data.error || `Scan failed (${response.status}).`);
+        setScanning(false);
+        return;
+      }
       const { wineName, vintage, region } = data;
+      if (typeof wineName !== 'string' || !wineName.trim()) {
+        setScanError('Could not read a wine name from the label. Try a clearer, well-lit photo.');
+        setScanning(false);
+        return;
+      }
       const id = Date.now();
       const guessedType = detectWineType(wineName, null);
-      setWines(prev => [...prev, { name: wineName, vintage, price: 0, id, wineType: guessedType, aiData: null, aiLoading: true }]);
+      const vintageNum = typeof vintage === 'number' ? vintage : parseInt(String(vintage), 10) || currentYear;
+      setWines(prev => [...prev, { name: wineName.trim(), vintage: vintageNum, price: 0, id, wineType: guessedType, aiData: null, aiLoading: true }]);
       setExpandedWine(id);
       setScanning(false);
       try {
-        const aiData = await fetchWineInfo(wineName, vintage, region || '');
+        const aiData = await fetchWineInfo(wineName, vintageNum, region || '');
         setWines(prev => prev.map(w => w.id === id ? { ...w, aiData, aiLoading: false } : w));
       } catch {
         setWines(prev => prev.map(w => w.id === id ? { ...w, aiLoading: false } : w));
       }
-    } catch {
-      setScanError('Could not process image.');
+    } catch (e) {
+      setScanError(e?.message?.includes('fetch') ? 'Network error — check your connection.' : 'Could not process image.');
       setScanning(false);
     }
   }, []);
