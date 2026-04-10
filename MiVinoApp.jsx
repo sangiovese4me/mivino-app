@@ -1,5 +1,3 @@
-“use client”;
-
 import React, { useState, useEffect, useRef, useCallback } from ‘react’;
 import { Trash2, ChevronDown, ChevronUp, Loader, Camera, X, ZoomIn } from ‘lucide-react’;
 
