@@ -3,41 +3,45 @@ export default async function handler(req, res) {
 
   const { wineName, vintage, region } = req.body;
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({
-      error:
-        'No Gemini API key. Set GEMINI_API_KEY in .env.local (or Vercel), save, restart the dev server.'
-    });
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not set' });
   }
 
   const regionHint = region ? `. The wine is from ${region} — use this exact region, do not substitute with a different region` : '';
 
-  const prompt = `You are a sommelier. For the wine "${wineName}" vintage ${vintage}${regionHint}, respond ONLY with this exact JSON structure, no other keys, no markdown, no backticks, no extra fields:
-{"region":"string - use provided region if given, otherwise best known region","tastingNotes":"string - 2-3 sentences combining aroma and palate in plain prose","foodPairings":["food1","food2","food3"],"peakWindow":{"start":2024,"end":2030},"peakSummary":"string - one sentence about when to drink"}`;
+  const prompt = `You are an expert sommelier with access to wine producer tech sheets and official documentation. For the wine "${wineName}" vintage ${vintage}${regionHint}:
+
+1. Search for the official producer tech sheet, winery website, or wine notes for this specific wine and vintage if available.
+2. Use that information to provide accurate, specific details including blend percentages if it is a blended wine.
+
+Respond ONLY with this exact JSON structure (no markdown, no backticks):
+{
+  "region": "string - exact region/appellation",
+  "grapeVarieties": "string - grape varieties and blend percentages if available (e.g. 78% Cabernet Sauvignon, 12% Merlot, 10% Petit Verdot), or just the variety if single varietal",
+  "tastingNotes": "string - 2-3 sentences combining aroma and palate in plain prose",
+  "winemaking": "string - brief winemaking notes such as barrel aging, fermentation details if available, otherwise empty string",
+  "foodPairings": ["food1", "food2", "food3"],
+  "peakWindow": {"start": 2024, "end": 2030},
+  "peakSummary": "string - one sentence about when to drink"
+}`;
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        body: JSON.stringify({
+          tools: [{ google_search: {} }],
+          contents: [{ parts: [{ text: prompt }] }]
+        })
       }
     );
     const data = await response.json();
     console.log('Gemini response:', JSON.stringify(data));
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = data.candidates?.[0]?.content?.parts?.find(p => p.text)?.text || '';
     const clean = text.replace(/```json|```/g, '').trim();
-    let parsed;
-    try {
-      parsed = JSON.parse(clean);
-    } catch {
-      const start = clean.indexOf('{');
-      const end = clean.lastIndexOf('}');
-      if (start === -1 || end <= start) throw new Error('Could not parse wine details from the model.');
-      parsed = JSON.parse(clean.slice(start, end + 1));
-    }
+    const parsed = JSON.parse(clean);
     res.status(200).json({ content: [{ text: JSON.stringify(parsed) }] });
   } catch (e) {
     console.error('Error:', e.message);
