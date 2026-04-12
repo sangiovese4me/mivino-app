@@ -513,6 +513,12 @@ export default function MiVinoApp() {
                             <p style={{ margin: '0 0 5px', color: C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tasting Notes</p>
                             <p style={{ margin: 0, color: C.body, fontSize: '13px', lineHeight: '1.6' }}>{wine.aiData.tastingNotes}</p>
                           </div>
+                          {wine.aiData.grapeVarieties && (
+                            <div>
+                              <p style={{ margin: '0 0 5px', color: C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Grape Varieties</p>
+                              <p style={{ margin: 0, color: C.body, fontSize: '13px', lineHeight: '1.6' }}>{wine.aiData.grapeVarieties}</p>
+                            </div>
+                          )}
                           <div>
                             <p style={{ margin: '0 0 8px', color: C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Food Pairings</p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -521,6 +527,12 @@ export default function MiVinoApp() {
                               ))}
                             </div>
                           </div>
+                          {wine.aiData.winemaking && (
+                            <div>
+                              <p style={{ margin: '0 0 5px', color: C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Winemaking</p>
+                              <p style={{ margin: 0, color: C.body, fontSize: '13px', lineHeight: '1.6' }}>{wine.aiData.winemaking}</p>
+                            </div>
+                          )}
                           <div style={{ background: isPeak ? C.sageBg : C.cream, borderRadius: '10px', padding: '12px', border: `1px solid ${isPeak ? C.sageBorder : C.border}` }}>
                             <p style={{ margin: '0 0 4px', color: isPeak ? C.sageDark : C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                               Peak Window · {wine.aiData.peakWindow?.start}–{wine.aiData.peakWindow?.end}
