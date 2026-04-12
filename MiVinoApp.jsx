@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Trash2, ChevronDown, ChevronUp, Loader, Camera, X, ZoomIn } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronUp, Loader, Camera, X } from 'lucide-react';
+import { useUser, useClerk } from '@clerk/nextjs';
 
-// NOTE: Authentication is client-side only and is not production-ready.
 const currentYear = new Date().getFullYear();
 
 const WINE_TYPES = {
@@ -215,9 +215,8 @@ function CameraViewfinder({ onCapture, onClose, onFallback }) {
 }
 
 export default function MiVinoApp() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
   const [wines, setWines] = useState(() => {
     try {
       const saved = localStorage.getItem('mivino_wines');
@@ -236,20 +235,6 @@ export default function MiVinoApp() {
   useEffect(() => {
     try { localStorage.setItem('mivino_wines', JSON.stringify(wines)); } catch {}
   }, [wines]);
-
-  useEffect(() => {
-    try {
-      const savedEmail = localStorage.getItem('mivino_email');
-      if (savedEmail) { setEmail(savedEmail); setIsLoggedIn(true); }
-    } catch {}
-  }, []);
-
-  const handleLogin = () => {
-    if (email && password) {
-      setIsLoggedIn(true);
-      try { localStorage.setItem('mivino_email', email); } catch {}
-    }
-  };
 
   const processBase64 = useCallback(async (base64) => {
     setShowCamera(false);
@@ -334,20 +319,12 @@ export default function MiVinoApp() {
     color: C.burgundy, fontSize: '15px', boxSizing: 'border-box', outline: 'none',
   };
 
-  if (!isLoggedIn) {
+  // Show loading state while Clerk initializes
+  if (!isLoaded) {
     return (
-      <div style={{ minHeight: '100vh', background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ background: C.white, padding: '40px', borderRadius: '20px', maxWidth: '400px', width: '100%', border: `1px solid ${C.border}` }}>
-          <p style={{ color: C.muted, textAlign: 'center', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 6px' }}>Welcome to</p>
-          <h1 style={{ color: C.burgundy, textAlign: 'center', marginBottom: '6px', fontSize: '32px', fontWeight: '500' }}>MiVino</h1>
-          <p style={{ color: C.muted, textAlign: 'center', marginBottom: '32px', fontSize: '13px' }}>Your personal wine cellar</p>
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={{ ...inputStyle, marginBottom: '20px' }} />
-          <button onClick={handleLogin} style={{ width: '100%', padding: '14px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '10px', fontWeight: '500', fontSize: '15px', cursor: 'pointer' }}>
-            Sign In
-          </button>
-          <p style={{ color: C.muted, textAlign: 'center', marginTop: '16px', fontSize: '12px' }}>Demo: use any email & password</p>
-        </div>
+      <div style={{ minHeight: '100vh', background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size={32} style={{ color: C.burgundy, animation: 'spin 1s linear infinite' }} />
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -387,11 +364,11 @@ export default function MiVinoApp() {
             <div>
               <p style={{ color: C.muted, fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 4px' }}>Your Cellar</p>
               <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '500', color: C.burgundy }}>MiVino</h1>
-              <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{email.split('@')[0]} · {wines.length} {wines.length === 1 ? 'bottle' : 'bottles'}</p>
+              <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0]} · {wines.length} {wines.length === 1 ? 'bottle' : 'bottles'}</p>
             </div>
           </div>
           <button
-            onClick={() => { setIsLoggedIn(false); setWines([]); setEmail(''); setPassword(''); try { localStorage.removeItem('mivino_email'); } catch {} }}
+            onClick={() => signOut()}
             style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: '12px', padding: '6px 12px', borderRadius: '8px' }}
           >
             Sign out
