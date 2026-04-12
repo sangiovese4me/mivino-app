@@ -12,7 +12,8 @@ export default async function handler(req, res) {
   const prompt = `You are an expert sommelier with access to wine producer tech sheets and official documentation. For the wine "${wineName}" vintage ${vintage}${regionHint}:
 
 1. Search for the official producer tech sheet, winery website, or wine notes for this specific wine and vintage if available.
-2. Use that information to provide accurate, specific details including blend percentages if it is a blended wine.
+2. Search for where this wine can be purchased online.
+3. Use that information to provide accurate, specific details including blend percentages if it is a blended wine.
 
 Respond ONLY with this exact JSON structure (no markdown, no backticks):
 {
@@ -22,7 +23,9 @@ Respond ONLY with this exact JSON structure (no markdown, no backticks):
   "winemaking": "string - brief winemaking notes such as barrel aging, fermentation details if available, otherwise empty string",
   "foodPairings": ["food1", "food2", "food3"],
   "peakWindow": {"start": 2024, "end": 2030},
-  "peakSummary": "string - one sentence about when to drink"
+  "peakSummary": "string - one sentence about when to drink",
+  "wineryUrl": "string - official winery website URL if found, otherwise empty string",
+  "purchaseUrl": "string - best purchase link from Wine.com, Vivino, Total Wine, or winery direct if found, otherwise empty string"
 }`;
 
   try {
