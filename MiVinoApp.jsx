@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Trash2, ChevronDown, ChevronUp, Loader, Camera, X } from 'lucide-react';
-import { useUser, useClerk, SignOutButton } from '@clerk/nextjs';
+import { useUser, useClerk } from '@clerk/nextjs';
 
 const currentYear = new Date().getFullYear();
 
@@ -367,11 +367,15 @@ export default function MiVinoApp() {
               <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0]} · {wines.length} {wines.length === 1 ? 'bottle' : 'bottles'}</p>
             </div>
           </div>
-          <SignOutButton redirectUrl="/sign-in">
-            <button style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: '12px', padding: '6px 12px', borderRadius: '8px' }}>
-              Sign out
-            </button>
-          </SignOutButton>
+          <button
+            onClick={async () => {
+              await signOut();
+              window.location.href = '/sign-in';
+            }}
+            style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: '12px', padding: '6px 12px', borderRadius: '8px' }}
+          >
+            Sign out
+          </button>
         </div>
       </div>
 
