@@ -221,6 +221,8 @@ export default function MiVinoApp() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [wines, setWines] = useState([]);
   const [winesLoading, setWinesLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [groupBy, setGroupBy] = useState('vintage');
   const [showAddForm, setShowAddForm] = useState(false);
   const [newWine, setNewWine] = useState({ name: '', vintage: 2020, price: 0 });
   const [expandedWine, setExpandedWine] = useState(null);
@@ -393,6 +395,46 @@ export default function MiVinoApp() {
     color: C.burgundy, fontSize: '15px', boxSizing: 'border-box', outline: 'none',
   };
 
+  // Sort and group wines
+  const typeOrder = { red: 0, white: 1, sparkling: 2, rose: 3, orange: 4 };
+
+  const getSortedWines = () => {
+    return [...wines].sort((a, b) => {
+      if (sortOrder === 'newest') return b.vintage - a.vintage;
+      if (sortOrder === 'oldest') return a.vintage - b.vintage;
+      if (sortOrder === 'name') return a.name.localeCompare(b.name);
+      if (sortOrder === 'price') return b.price - a.price;
+      return 0;
+    });
+  };
+
+  const getGroupedWines = () => {
+    const sorted = getSortedWines();
+    if (groupBy === 'none') return { 'All Wines': sorted };
+    const groups = {};
+    sorted.forEach(wine => {
+      const key = groupBy === 'vintage'
+        ? wine.vintage?.toString()
+        : wine.wineType?.charAt(0).toUpperCase() + wine.wineType?.slice(1);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(wine);
+    });
+    if (groupBy === 'type') {
+      return Object.fromEntries(
+        Object.entries(groups).sort((a, b) => (typeOrder[a[0].toLowerCase()] ?? 9) - (typeOrder[b[0].toLowerCase()] ?? 9))
+      );
+    }
+    return groups;
+  };
+
+  // Wines nearing peak window (within 1 year)
+  const nearingPeak = wines.filter(w => {
+    if (!w.aiData?.peakWindow) return false;
+    const { start, end } = w.aiData.peakWindow;
+    const now = currentYear;
+    return start - now === 1 || (now < start && start - now <= 1);
+  });
+
   // Show loading state while Clerk initializes
   if (!isLoaded) {
     return (
@@ -494,6 +536,38 @@ export default function MiVinoApp() {
           </div>
         )}
 
+        {/* Peak Alert Banner */}
+        {nearingPeak.length > 0 && (
+          <div style={{ background: '#fff8e6', border: '1px solid #f0d080', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '16px' }}>⏰</span>
+            <div>
+              <p style={{ margin: 0, color: '#8a6000', fontSize: '13px', fontWeight: '500' }}>
+                {nearingPeak.length === 1 ? '1 wine is approaching' : `${nearingPeak.length} wines are approaching`} peak drinking window
+              </p>
+              <p style={{ margin: '2px 0 0', color: '#b08000', fontSize: '12px' }}>
+                {nearingPeak.map(w => w.name).join(', ')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Sort & Group Controls */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <select value={sortOrder} onChange={e => setSortOrder(e.target.value)}
+            style={{ flex: 1, padding: '8px 10px', background: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.burgundy, fontSize: '12px', cursor: 'pointer' }}>
+            <option value="newest">Vintage: Newest first</option>
+            <option value="oldest">Vintage: Oldest first</option>
+            <option value="name">Name: A-Z</option>
+            <option value="price">Price: High-Low</option>
+          </select>
+          <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
+            style={{ flex: 1, padding: '8px 10px', background: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.burgundy, fontSize: '12px', cursor: 'pointer' }}>
+            <option value="vintage">Group by Vintage</option>
+            <option value="type">Group by Type</option>
+            <option value="none">No Grouping</option>
+          </select>
+        </div>
+
         {/* Collection Label */}
         <p style={{ fontSize: '11px', letterSpacing: '0.1em', color: C.muted, margin: '0 0 12px', textTransform: 'uppercase' }}>Collection</p>
 
@@ -505,7 +579,7 @@ export default function MiVinoApp() {
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '8px' }}>
-            {wines.map(wine => {
+            {groupWines.map(wine => {
               const isPeak = isInPeakWindow(wine);
               const isExpanded = expandedWine === wine.id;
               const wineType = WINE_TYPES[wine.wineType || 'red'];
@@ -611,6 +685,9 @@ export default function MiVinoApp() {
                 </div>
               );
             })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
