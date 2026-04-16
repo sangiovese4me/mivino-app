@@ -1,14 +1,8 @@
-"use client";
+ "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Trash2, ChevronDown, ChevronUp, Loader, Camera, X } from 'lucide-react';
 import { useUser, useClerk } from '@clerk/nextjs';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 const currentYear = new Date().getFullYear();
 
@@ -236,17 +230,14 @@ export default function MiVinoApp() {
   const [scanError, setScanError] = useState('');
   const fileInputRef = useRef(null);
 
-  // Load wines from Supabase when user logs in
+  // Load wines from API when user logs in
   useEffect(() => {
     if (user?.id) {
       setWinesLoading(true);
-      supabase
-        .from('wines')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (!error && data) {
+      fetch('/api/wines')
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) {
             setWines(data.map(w => ({
               id: w.id,
               name: w.name,
@@ -259,7 +250,8 @@ export default function MiVinoApp() {
             })));
           }
           setWinesLoading(false);
-        });
+        })
+        .catch(() => setWinesLoading(false));
     }
   }, [user]);
 
@@ -294,14 +286,11 @@ export default function MiVinoApp() {
       try {
         const aiData = await fetchWineInfo(wineName, vintage, region);
         const aiType = detectWineType(wineName, aiData);
-        const { data: saved } = await supabase.from('wines').insert({
-          user_id: user.id,
-          name: wineName,
-          vintage,
-          price: 0,
-          wine_type: aiType,
-          ai_data: aiData,
-        }).select().single();
+        const saved = await fetch('/api/wines', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: wineName, vintage, price: 0, wine_type: aiType, ai_data: aiData })
+        }).then(r => r.json());
         setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: saved?.id || tempId, aiData, aiLoading: false, wineType: aiType } : w));
       } catch {
         setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w));
@@ -360,20 +349,13 @@ export default function MiVinoApp() {
     try {
       const aiData = await fetchWineInfo(newWine.name, vintage, '');
       const aiType = detectWineType(newWine.name, aiData);
-      // Save to Supabase
-      const { data, error } = await supabase.from('wines').insert({
-        user_id: user.id,
-        name: newWine.name,
-        vintage,
-        price,
-        wine_type: aiType,
-        ai_data: aiData,
-      }).select().single();
-      if (!error && data) {
-        setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: data.id, aiData, aiLoading: false, wineType: aiType } : w));
-      } else {
-        setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
-      }
+      // Save to API
+      const saved = await fetch('/api/wines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newWine.name, vintage, price, wine_type: aiType, ai_data: aiData })
+      }).then(r => r.json());
+      setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: saved.id || tempId, aiData, aiLoading: false, wineType: aiType } : w));
     } catch {
       setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w));
     }
@@ -382,13 +364,17 @@ export default function MiVinoApp() {
   const handleRemoveWine = async (id) => {
     setWines(wines.filter(w => w.id !== id));
     if (expandedWine === id) setExpandedWine(null);
-    await supabase.from('wines').delete().eq('id', id).eq('user_id', user.id);
+    await fetch(`/api/wines?id=${id}`, { method: 'DELETE' });
   };
 
   const handleChangeType = async (id, type) => {
     setWines(prev => prev.map(w => w.id === id ? { ...w, wineType: type } : w));
     setEditingType(null);
-    await supabase.from('wines').update({ wine_type: type }).eq('id', id).eq('user_id', user.id);
+    await fetch(`/api/wines?id=${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wine_type: type })
+    });
   };
 
   const peakCount = wines.filter(isInPeakWindow).length;
