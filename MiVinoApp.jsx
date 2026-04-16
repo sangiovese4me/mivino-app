@@ -217,6 +217,8 @@ function CameraViewfinder({ onCapture, onClose, onFallback }) {
 export default function MiVinoApp() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
+  const [isPremium, setIsPremium] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [wines, setWines] = useState(() => {
     try {
       const saved = localStorage.getItem('mivino_wines');
@@ -235,6 +237,16 @@ export default function MiVinoApp() {
   useEffect(() => {
     try { localStorage.setItem('mivino_wines', JSON.stringify(wines)); } catch {}
   }, [wines]);
+
+  // Check subscription status
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`/api/check-subscription?userId=${user.id}`)
+        .then(r => r.json())
+        .then(data => setIsPremium(data.isPremium))
+        .catch(() => setIsPremium(false));
+    }
+  }, [user]);
 
   const processBase64 = useCallback(async (base64) => {
     setShowCamera(false);
@@ -279,8 +291,29 @@ export default function MiVinoApp() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleUpgrade = async () => {
+    try {
+      const response = await fetch('/api/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          email: user?.emailAddresses?.[0]?.emailAddress
+        })
+      });
+      const data = await response.json();
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      alert('Could not start checkout. Please try again.');
+    }
+  };
+
   const handleAddWine = async () => {
     if (!newWine.name) return;
+    if (!isPremium && wines.length >= 5) {
+      setShowUpgrade(true);
+      return;
+    }
     const vintage = parseInt(newWine.vintage);
     const price = parseFloat(newWine.price);
     if (vintage < 1800 || vintage > currentYear) { alert('Please enter a valid vintage year.'); return; }
@@ -364,7 +397,7 @@ export default function MiVinoApp() {
             <div>
               <p style={{ color: C.muted, fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 4px' }}>Your Cellar</p>
               <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '500', color: C.burgundy }}>MiVino</h1>
-              <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0]} · {wines.length} {wines.length === 1 ? 'bottle' : 'bottles'}</p>
+              <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0]} · {wines.length}{!isPremium ? '/5' : ''} {wines.length === 1 ? 'bottle' : 'bottles'} {!isPremium ? '· Free' : '· Premium'}</p>
             </div>
           </div>
           <button
@@ -540,6 +573,38 @@ export default function MiVinoApp() {
           </div>
         )}
       </div>
+
+      {/* Upgrade Modal */}
+      {showUpgrade && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(92,26,46,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px' }}>
+          <div style={{ background: C.white, borderRadius: '24px', padding: '32px 24px', width: '100%', maxWidth: '360px', textAlign: 'center' }}>
+            <svg width="40" height="40" viewBox="-5 -5 58 54" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: '16px' }}>
+              <circle cx="22" cy="4"  r="4" fill="#5c1a2e"/>
+              <circle cx="14" cy="16" r="4" fill="#5c1a2e"/>
+              <circle cx="30" cy="16" r="4" fill="#5c1a2e"/>
+              <circle cx="6"  cy="28" r="4" fill="#5c1a2e"/>
+              <circle cx="22" cy="28" r="4" fill="#5c1a2e"/>
+              <circle cx="38" cy="28" r="4" fill="#5c1a2e"/>
+              <circle cx="0"  cy="40" r="4" fill="#5c1a2e"/>
+              <circle cx="14" cy="40" r="4" fill="#5c1a2e"/>
+              <circle cx="30" cy="40" r="4" fill="#5c1a2e"/>
+              <circle cx="44" cy="40" r="4" fill="#5c1a2e"/>
+            </svg>
+            <h2 style={{ color: C.burgundy, fontSize: '22px', fontWeight: '500', margin: '0 0 8px' }}>Upgrade to Premium</h2>
+            <p style={{ color: C.muted, fontSize: '14px', margin: '0 0 20px', lineHeight: '1.6' }}>You've reached the 10 wine limit on the free plan. Upgrade for unlimited wines, full AI sommelier, and label scanning.</p>
+            <div style={{ background: C.cream, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${C.border}` }}>
+              <p style={{ color: C.burgundy, fontSize: '28px', fontWeight: '500', margin: '0 0 4px' }}>$3.99<span style={{ fontSize: '14px', fontWeight: '400', color: C.muted' }}>/month</span></p>
+              <p style={{ color: C.muted, fontSize: '12px', margin: 0 }}>Cancel anytime</p>
+            </div>
+            <button onClick={handleUpgrade} style={{ width: '100%', padding: '14px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '12px', fontWeight: '500', fontSize: '15px', cursor: 'pointer', marginBottom: '10px' }}>
+              Upgrade Now
+            </button>
+            <button onClick={() => setShowUpgrade(false)} style={{ width: '100%', padding: '14px', background: 'none', color: C.muted, border: `1px solid ${C.border}`, borderRadius: '12px', fontSize: '15px', cursor: 'pointer' }}>
+              Maybe Later
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add Wine Modal */}
       {showAddForm && (
