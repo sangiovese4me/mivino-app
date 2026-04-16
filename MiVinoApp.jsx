@@ -591,9 +591,9 @@ export default function MiVinoApp() {
               <circle cx="44" cy="40" r="4" fill="#5c1a2e"/>
             </svg>
             <h2 style={{ color: C.burgundy, fontSize: '22px', fontWeight: '500', margin: '0 0 8px' }}>Upgrade to Premium</h2>
-            <p style={{ color: C.muted, fontSize: '14px', margin: '0 0 20px', lineHeight: '1.6' }}>You've reached the 10 wine limit on the free plan. Upgrade for unlimited wines, full AI sommelier, and label scanning.</p>
+            <p style={{ color: C.muted, fontSize: '14px', margin: '0 0 20px', lineHeight: '1.6' }}>You've reached the 5 wine limit on the free plan. Upgrade for unlimited wines, full AI sommelier, and label scanning.</p>
             <div style={{ background: C.cream, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${C.border}` }}>
-              <p style={{ color: C.burgundy, fontSize: '28px', fontWeight: '500', margin: '0 0 4px' }}>$3.99<span style={{ fontSize: '14px', fontWeight: '400', color: C.muted' }}>/month</span></p>
+              <p style={{ color: C.burgundy, fontSize: '28px', fontWeight: '500', margin: '0 0 4px' }}>$3.99<span style={{ fontSize: '14px', fontWeight: '400', color: C.muted }}>/month</span></p>
               <p style={{ color: C.muted, fontSize: '12px', margin: 0 }}>Cancel anytime</p>
             </div>
             <button onClick={handleUpgrade} style={{ width: '100%', padding: '14px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '12px', fontWeight: '500', fontSize: '15px', cursor: 'pointer', marginBottom: '10px' }}>
