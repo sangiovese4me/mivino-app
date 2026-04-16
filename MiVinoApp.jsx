@@ -3,6 +3,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Trash2, ChevronDown, ChevronUp, Loader, Camera, X } from 'lucide-react';
 import { useUser, useClerk } from '@clerk/nextjs';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 const currentYear = new Date().getFullYear();
 
@@ -219,12 +225,8 @@ export default function MiVinoApp() {
   const { signOut } = useClerk();
   const [isPremium, setIsPremium] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [wines, setWines] = useState(() => {
-    try {
-      const saved = localStorage.getItem('mivino_wines');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  const [wines, setWines] = useState([]);
+  const [winesLoading, setWinesLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newWine, setNewWine] = useState({ name: '', vintage: 2020, price: 0 });
   const [expandedWine, setExpandedWine] = useState(null);
@@ -234,9 +236,32 @@ export default function MiVinoApp() {
   const [scanError, setScanError] = useState('');
   const fileInputRef = useRef(null);
 
+  // Load wines from Supabase when user logs in
   useEffect(() => {
-    try { localStorage.setItem('mivino_wines', JSON.stringify(wines)); } catch {}
-  }, [wines]);
+    if (user?.id) {
+      setWinesLoading(true);
+      supabase
+        .from('wines')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setWines(data.map(w => ({
+              id: w.id,
+              name: w.name,
+              vintage: w.vintage,
+              price: w.price,
+              wineType: w.wine_type,
+              aiData: w.ai_data,
+              aiLoading: false,
+              aiError: false,
+            })));
+          }
+          setWinesLoading(false);
+        });
+    }
+  }, [user]);
 
   // Check subscription status
   useEffect(() => {
@@ -261,17 +286,25 @@ export default function MiVinoApp() {
       const data = await response.json();
       if (data.error) { setScanError(data.error); setScanning(false); return; }
       const { wineName, vintage, region = '' } = data;
-      const id = Date.now();
+      const tempId = Date.now();
       const guessedType = detectWineType(wineName, null);
-      setWines(prev => [...prev, { name: wineName, vintage, price: 0, id, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
-      setExpandedWine(id);
+      setWines(prev => [...prev, { name: wineName, vintage, price: 0, id: tempId, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
+      setExpandedWine(tempId);
       setScanning(false);
       try {
         const aiData = await fetchWineInfo(wineName, vintage, region);
         const aiType = detectWineType(wineName, aiData);
-        setWines(prev => prev.map(w => w.id === id ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
+        const { data: saved } = await supabase.from('wines').insert({
+          user_id: user.id,
+          name: wineName,
+          vintage,
+          price: 0,
+          wine_type: aiType,
+          ai_data: aiData,
+        }).select().single();
+        setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: saved?.id || tempId, aiData, aiLoading: false, wineType: aiType } : w));
       } catch {
-        setWines(prev => prev.map(w => w.id === id ? { ...w, aiLoading: false, aiError: true } : w));
+        setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w));
       }
     } catch {
       setScanError('Could not process image. Please try again.');
@@ -318,29 +351,44 @@ export default function MiVinoApp() {
     const price = parseFloat(newWine.price);
     if (vintage < 1800 || vintage > currentYear) { alert('Please enter a valid vintage year.'); return; }
     if (price < 0) { alert('Price cannot be negative.'); return; }
-    const id = Date.now();
+    const tempId = Date.now();
     const guessedType = detectWineType(newWine.name, null);
-    setWines(prev => [...prev, { ...newWine, vintage, price, id, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
+    setWines(prev => [...prev, { ...newWine, vintage, price, id: tempId, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
     setNewWine({ name: '', vintage: 2020, price: 0 });
     setShowAddForm(false);
-    setExpandedWine(id);
+    setExpandedWine(tempId);
     try {
       const aiData = await fetchWineInfo(newWine.name, vintage, '');
       const aiType = detectWineType(newWine.name, aiData);
-      setWines(prev => prev.map(w => w.id === id ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
+      // Save to Supabase
+      const { data, error } = await supabase.from('wines').insert({
+        user_id: user.id,
+        name: newWine.name,
+        vintage,
+        price,
+        wine_type: aiType,
+        ai_data: aiData,
+      }).select().single();
+      if (!error && data) {
+        setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: data.id, aiData, aiLoading: false, wineType: aiType } : w));
+      } else {
+        setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
+      }
     } catch {
-      setWines(prev => prev.map(w => w.id === id ? { ...w, aiLoading: false, aiError: true } : w));
+      setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w));
     }
   };
 
-  const handleRemoveWine = (id) => {
+  const handleRemoveWine = async (id) => {
     setWines(wines.filter(w => w.id !== id));
     if (expandedWine === id) setExpandedWine(null);
+    await supabase.from('wines').delete().eq('id', id).eq('user_id', user.id);
   };
 
-  const handleChangeType = (id, type) => {
+  const handleChangeType = async (id, type) => {
     setWines(prev => prev.map(w => w.id === id ? { ...w, wineType: type } : w));
     setEditingType(null);
+    await supabase.from('wines').update({ wine_type: type }).eq('id', id).eq('user_id', user.id);
   };
 
   const peakCount = wines.filter(isInPeakWindow).length;
