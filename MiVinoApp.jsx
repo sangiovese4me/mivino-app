@@ -258,6 +258,13 @@ export default function MiVinoApp() {
   // Check subscription status
   useEffect(() => {
     if (user?.id) {
+      // Check if returning from successful Stripe payment
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('upgraded') === 'true') {
+        setIsPremium(true);
+        window.history.replaceState({}, '', '/');
+        return;
+      }
       fetch(`/api/check-subscription?userId=${user.id}`)
         .then(r => r.json())
         .then(data => setIsPremium(data.isPremium))
