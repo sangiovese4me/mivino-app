@@ -230,6 +230,8 @@ export default function MiVinoApp() {
   const [scanning, setScanning] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [scanError, setScanError] = useState('');
+  const [editingWine, setEditingWine] = useState(null);
+  const [editForm, setEditForm] = useState({});
   const fileInputRef = useRef(null);
 
   // Load wines from API when user logs in
@@ -320,6 +322,24 @@ export default function MiVinoApp() {
       setScanError('Could not read image file. Please try again.');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleEditWine = (wine) => {
+    setEditingWine(wine.id);
+    setEditForm({ name: wine.name, vintage: wine.vintage, price: wine.price });
+  };
+
+  const handleSaveEdit = async (id) => {
+    const vintage = parseInt(editForm.vintage);
+    const price = parseFloat(editForm.price);
+    if (!editForm.name || isNaN(vintage) || isNaN(price)) return;
+    setWines(prev => prev.map(w => w.id === id ? { ...w, name: editForm.name, vintage, price } : w));
+    setEditingWine(null);
+    await fetch(`/api/wines?id=${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editForm.name, vintage, price })
+    });
   };
 
   const handleUpgrade = async () => {
@@ -627,11 +647,48 @@ export default function MiVinoApp() {
                       <button onClick={() => setExpandedWine(isExpanded ? null : wine.id)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }} aria-label="Toggle details">
                         {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </button>
+                      <button onClick={() => handleEditWine(wine)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }} aria-label="Edit wine">
+                        ✏️
+                      </button>
                       <button onClick={() => handleRemoveWine(wine.id)} style={{ background: 'none', border: 'none', color: C.border, cursor: 'pointer', padding: '4px' }} aria-label="Remove wine">
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
+                  {editingWine === wine.id && (
+                    <div style={{ borderTop: `1px solid ${C.borderLight}`, padding: '14px 16px', background: C.cream, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <input
+                        value={editForm.name}
+                        onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="Wine name"
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: `1px solid ${C.border}`, fontSize: '14px', color: C.burgundy, background: C.white }}
+                      />
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="number"
+                          value={editForm.vintage}
+                          onChange={e => setEditForm(f => ({ ...f, vintage: e.target.value }))}
+                          placeholder="Vintage"
+                          style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: `1px solid ${C.border}`, fontSize: '14px', color: C.burgundy, background: C.white }}
+                        />
+                        <input
+                          type="number"
+                          value={editForm.price}
+                          onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
+                          placeholder="Price"
+                          style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: `1px solid ${C.border}`, fontSize: '14px', color: C.burgundy, background: C.white }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => handleSaveEdit(wine.id)} style={{ flex: 1, padding: '9px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                          Save
+                        </button>
+                        <button onClick={() => setEditingWine(null)} style={{ flex: 1, padding: '9px', background: 'none', color: C.muted, border: `1px solid ${C.border}`, borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {isExpanded && (
                     <div style={{ borderTop: `1px solid ${C.borderLight}`, padding: '16px' }}>
                       {wine.aiLoading && (
