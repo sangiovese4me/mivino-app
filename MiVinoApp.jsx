@@ -685,9 +685,9 @@ export default function MiVinoApp() {
                 </div>
               );
             })}
-              </div>
             </div>
-            ))}
+          </div>
+          ))}
           </div>
         )}
       </div>
