@@ -232,6 +232,8 @@ export default function MiVinoApp() {
   const [scanError, setScanError] = useState('');
   const [editingWine, setEditingWine] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [scannedWine, setScannedWine] = useState(null);
+  const [scannedPrice, setScannedPrice] = useState('');
   const fileInputRef = useRef(null);
 
   // Load wines from API when user logs in
@@ -289,23 +291,9 @@ export default function MiVinoApp() {
       const data = await response.json();
       if (data.error) { setScanError(data.error); setScanning(false); return; }
       const { wineName, vintage, region = '' } = data;
-      const tempId = Date.now();
-      const guessedType = detectWineType(wineName, null);
-      setWines(prev => [...prev, { name: wineName, vintage, price: 0, id: tempId, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
-      setExpandedWine(tempId);
       setScanning(false);
-      try {
-        const aiData = await fetchWineInfo(wineName, vintage, region);
-        const aiType = detectWineType(wineName, aiData);
-        const saved = await fetch('/api/wines', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: wineName, vintage, price: 0, wine_type: aiType, ai_data: aiData })
-        }).then(r => r.json());
-        setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: saved?.id || tempId, aiData, aiLoading: false, wineType: aiType } : w));
-      } catch {
-        setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w));
-      }
+      setScannedWine({ name: wineName, vintage, region });
+      setScannedPrice('');
     } catch {
       setScanError('Could not process image. Please try again.');
       setScanning(false);
@@ -322,6 +310,30 @@ export default function MiVinoApp() {
       setScanError('Could not read image file. Please try again.');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleConfirmScannedWine = async (priceValue) => {
+    if (!scannedWine) return;
+    const { name, vintage, region } = scannedWine;
+    const price = parseFloat(priceValue) || 0;
+    const tempId = Date.now();
+    const guessedType = detectWineType(name, null);
+    setWines(prev => [...prev, { name, vintage, price, id: tempId, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
+    setExpandedWine(tempId);
+    setScannedWine(null);
+    setScannedPrice('');
+    try {
+      const aiData = await fetchWineInfo(name, vintage, region);
+      const aiType = detectWineType(name, aiData);
+      const saved = await fetch('/api/wines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, vintage, price, wine_type: aiType, ai_data: aiData })
+      }).then(r => r.json());
+      setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: saved?.id || tempId, aiData, aiLoading: false, wineType: aiType } : w));
+    } catch {
+      setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w));
+    }
   };
 
   const handleEditWine = (wine) => {
@@ -754,6 +766,38 @@ export default function MiVinoApp() {
           </div>
         )}
       </div>
+
+      {/* Scanned Wine Price Prompt */}
+      {scannedWine && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(92,26,46,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px' }}>
+          <div style={{ background: C.white, borderRadius: '20px', padding: '28px 24px', width: '100%', maxWidth: '360px' }}>
+            <p style={{ color: C.muted, fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 6px', textAlign: 'center' }}>Wine Scanned</p>
+            <h2 style={{ color: C.burgundy, fontSize: '20px', fontWeight: '500', margin: '0 0 4px', textAlign: 'center' }}>{scannedWine.name}</h2>
+            <p style={{ color: C.muted, fontSize: '13px', margin: '0 0 20px', textAlign: 'center' }}>{scannedWine.vintage}{scannedWine.region ? ` · ${scannedWine.region}` : ''}</p>
+
+            <label style={{ display: 'block', color: C.burgundy, fontSize: '13px', fontWeight: '500', marginBottom: '6px' }}>What did you pay for this wine?</label>
+            <div style={{ display: 'flex', alignItems: 'center', background: C.cream, border: `1px solid ${C.border}`, borderRadius: '10px', padding: '10px 14px', marginBottom: '16px' }}>
+              <span style={{ color: C.muted, marginRight: '6px', fontSize: '15px' }}>$</span>
+              <input
+                type="number"
+                autoFocus
+                value={scannedPrice}
+                onChange={e => setScannedPrice(e.target.value)}
+                placeholder="0.00"
+                style={{ flex: 1, border: 'none', background: 'none', outline: 'none', fontSize: '15px', color: C.burgundy }}
+              />
+            </div>
+            <p style={{ color: C.muted, fontSize: '11px', margin: '0 0 16px', textAlign: 'center' }}>You can update this later</p>
+
+            <button onClick={() => handleConfirmScannedWine(scannedPrice)} style={{ width: '100%', padding: '13px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '8px' }}>
+              Save Wine
+            </button>
+            <button onClick={() => handleConfirmScannedWine('0')} style={{ width: '100%', padding: '13px', background: 'none', color: C.muted, border: `1px solid ${C.border}`, borderRadius: '10px', fontSize: '14px', cursor: 'pointer' }}>
+              Skip — Add Without Price
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Upgrade Modal */}
       {showUpgrade && (
