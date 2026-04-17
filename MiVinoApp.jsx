@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Trash2, ChevronDown, ChevronUp, Loader, Camera, X } from 'lucide-react';
@@ -685,8 +685,8 @@ export default function MiVinoApp() {
                 </div>
               );
             })}
-                </div>
               </div>
+            </div>
             ))}
           </div>
         )}
