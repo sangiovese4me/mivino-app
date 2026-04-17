@@ -578,13 +578,19 @@ export default function MiVinoApp() {
             <p style={{ fontSize: '13px', margin: 0 }}>Add a wine manually or scan a label to get started</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: '8px' }}>
-            {groupWines.map(wine => {
-              const isPeak = isInPeakWindow(wine);
-              const isExpanded = expandedWine === wine.id;
-              const wineType = WINE_TYPES[wine.wineType || 'red'];
-              const isEditingThisType = editingType === wine.id;
-              return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {Object.entries(getGroupedWines()).map(([group, groupWines]) => (
+              <div key={group} style={{ marginBottom: '12px' }}>
+                {groupBy !== 'none' && (
+                  <p style={{ color: C.muted, fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 8px', paddingLeft: '2px' }}>{group}</p>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {groupWines.map(wine => {
+                  const isPeak = isInPeakWindow(wine);
+                  const isExpanded = expandedWine === wine.id;
+                  const wineType = WINE_TYPES[wine.wineType || 'red'];
+                  const isEditingThisType = editingType === wine.id;
+                  return (
                 <div key={wine.id} style={{ background: C.white, borderRadius: '16px', border: `1px solid ${isPeak ? C.sageBorder : C.borderLight}`, overflow: 'hidden' }}>
                   <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
@@ -685,9 +691,9 @@ export default function MiVinoApp() {
                 </div>
               );
             })}
-            </div>
-          </div>
-          ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
