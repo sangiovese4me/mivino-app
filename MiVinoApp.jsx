@@ -292,6 +292,10 @@ export default function MiVinoApp() {
       if (data.error) { setScanError(data.error); setScanning(false); return; }
       const { wineName, vintage, region = '' } = data;
       setScanning(false);
+      if (!isPremium && wines.length >= 5) {
+        setShowUpgrade(true);
+        return;
+      }
       setScannedWine({ name: wineName, vintage, region });
       setScannedPrice('');
     } catch {
@@ -314,6 +318,12 @@ export default function MiVinoApp() {
 
   const handleConfirmScannedWine = async (priceValue) => {
     if (!scannedWine) return;
+    if (!isPremium && wines.length >= 5) {
+      setScannedWine(null);
+      setScannedPrice('');
+      setShowUpgrade(true);
+      return;
+    }
     const { name, vintage, region } = scannedWine;
     const price = parseFloat(priceValue) || 0;
     const tempId = Date.now();
