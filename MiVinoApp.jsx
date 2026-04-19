@@ -346,21 +346,37 @@ export default function MiVinoApp() {
     }
   };
 
+  const handleRetryAiInfo = async (wine) => {
+    setWines(prev => prev.map(w => w.id === wine.id ? { ...w, aiLoading: true, aiError: false } : w));
+    try {
+      const aiData = await fetchWineInfo(wine.name, wine.vintage, '');
+      const aiType = detectWineType(wine.name, aiData);
+      setWines(prev => prev.map(w => w.id === wine.id ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
+      await fetch(`/api/wines?id=${wine.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ai_data: aiData, wine_type: aiType })
+      });
+    } catch {
+      setWines(prev => prev.map(w => w.id === wine.id ? { ...w, aiLoading: false, aiError: true } : w));
+    }
+  };
+
   const handleEditWine = (wine) => {
     setEditingWine(wine.id);
-    setEditForm({ name: wine.name, vintage: wine.vintage, price: wine.price });
+    setEditForm({ name: wine.name, vintage: wine.vintage, price: wine.price, wineType: wine.wineType });
   };
 
   const handleSaveEdit = async (id) => {
     const vintage = parseInt(editForm.vintage);
     const price = parseFloat(editForm.price);
     if (!editForm.name || isNaN(vintage) || isNaN(price)) return;
-    setWines(prev => prev.map(w => w.id === id ? { ...w, name: editForm.name, vintage, price } : w));
+    setWines(prev => prev.map(w => w.id === id ? { ...w, name: editForm.name, vintage, price, wineType: editForm.wineType } : w));
     setEditingWine(null);
     await fetch(`/api/wines?id=${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editForm.name, vintage, price })
+      body: JSON.stringify({ name: editForm.name, vintage, price, wine_type: editForm.wineType })
     });
   };
 
@@ -701,6 +717,14 @@ export default function MiVinoApp() {
                           style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: `1px solid ${C.border}`, fontSize: '14px', color: C.burgundy, background: C.white }}
                         />
                       </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {Object.entries(WINE_TYPES).map(([key, t]) => (
+                          <button key={key} onClick={() => setEditForm(f => ({ ...f, wineType: key }))}
+                            style={{ background: editForm.wineType === key ? t.bg : C.white, border: `1px solid ${editForm.wineType === key ? t.border : C.border}`, color: editForm.wineType === key ? t.color : C.muted, fontSize: '11px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontWeight: editForm.wineType === key ? '600' : '400' }}>
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button onClick={() => handleSaveEdit(wine.id)} style={{ flex: 1, padding: '9px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
                           Save
@@ -719,7 +743,19 @@ export default function MiVinoApp() {
                           <span style={{ fontSize: '13px' }}>Consulting AI sommelier...</span>
                         </div>
                       )}
-                      {wine.aiError && <p style={{ color: '#b91c1c', fontSize: '13px', margin: 0 }}>Could not fetch wine info. Please try again later.</p>}
+                      {wine.aiError && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <p style={{ color: '#b91c1c', fontSize: '13px', margin: 0 }}>Could not fetch wine info.</p>
+                          <button onClick={() => handleRetryAiInfo(wine)} style={{ alignSelf: 'flex-start', background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                            Retry AI sommelier
+                          </button>
+                        </div>
+                      )}
+                      {!wine.aiLoading && !wine.aiError && !wine.aiData && (
+                        <button onClick={() => handleRetryAiInfo(wine)} style={{ background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                          Load AI sommelier info
+                        </button>
+                      )}
                       {wine.aiData && (
                         <div style={{ display: 'grid', gap: '14px' }}>
                           <div>
