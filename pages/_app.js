@@ -12,6 +12,9 @@ export default function App({ Component, pageProps }) {
         <meta name="apple-mobile-web-app-title" content="MiVino" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
       </Head>
       <Component {...pageProps} />
     </ClerkProvider>
