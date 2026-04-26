@@ -10,7 +10,7 @@ const WINE_TYPES = {
   red:      { label: 'Red',      color: '#5c1a2e', bg: '#f5eef0', border: '#e0c8cf' },
   white:    { label: 'White',    color: '#8a7a30', bg: '#faf8e8', border: '#ddd8a0' },
   sparkling:{ label: 'Sparkling',color: '#c4724a', bg: '#fdf5f0', border: '#f0c8a8' },
-  rose:     { label: 'Rosé',     color: '#b85c78', bg: '#fdf0f3', border: '#f0b8c8' },
+  rose:     { label: 'Ros' + String.fromCharCode(233),     color: '#b85c78', bg: '#fdf0f3', border: '#f0b8c8' },
   orange:   { label: 'Orange',   color: '#c47830', bg: '#fdf6ee', border: '#f0d0a0' },
 };
 
@@ -33,24 +33,25 @@ function isInPeakWindow(wine) {
   return currentYear >= start && currentYear <= end;
 }
 
-async function fetchWineInfo(wineName, vintage, region = '') {
-  const response = await fetch('/api/wine-info', {
+async function fetchWineInfo(wineName, vintage, region) {
+  region = region || '';
+  var response = await fetch('/api/wine-info', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ wineName, vintage, region })
+    body: JSON.stringify({ wineName: wineName, vintage: vintage, region: region })
   });
-  const data = await response.json();
-  const text = data.content.map(i => i.text || '').join('');
-  const clean = text.replace(/```json|```/g, '').trim();
+  var data = await response.json();
+  var text = data.content.map(function(i) { return i.text || ''; }).join('');
+  var clean = text.replace(/```json|```/g, '').trim();
   return JSON.parse(clean);
 }
 
 function detectWineType(wineName, aiData) {
-  const type = (aiData?.wineType || '').toLowerCase();
-  const name = wineName.toLowerCase();
+  var type = (aiData?.wineType || '').toLowerCase();
+  var name = wineName.toLowerCase();
   if (type.includes('sparkling') || type.includes('champagne') || type.includes('prosecco') ||
       name.includes('champagne') || name.includes('prosecco') || name.includes('cava') ||
-      name.includes('sparkling') || name.includes('crémant')) return 'sparkling';
+      name.includes('sparkling') || name.includes('cr' + String.fromCharCode(233) + 'mant')) return 'sparkling';
   if (type.includes('orange') || name.includes('orange') || name.includes('ramato')) return 'orange';
   if (type.includes('ros') || name.includes('ros') || name.includes('rosato') || name.includes('rosado')) return 'rose';
   if (type.includes('white') || name.includes('blanc') || name.includes('grigio') ||
@@ -61,13 +62,14 @@ function detectWineType(wineName, aiData) {
 
 // Resize image to max 1024px before sending
 function resizeImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const maxSize = 1024;
-      let { width, height } = img;
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var maxSize = 1024;
+      var width = img.width;
+      var height = img.height;
       if (width > height) {
         if (width > maxSize) { height = (height * maxSize) / width; width = maxSize; }
       } else {
@@ -86,9 +88,10 @@ function resizeImage(file) {
 
 // Capture frame from video as base64
 function captureFrame(videoEl) {
-  const canvas = document.createElement('canvas');
-  const maxSize = 1024;
-  let { videoWidth: width, videoHeight: height } = videoEl;
+  var canvas = document.createElement('canvas');
+  var maxSize = 1024;
+  var width = videoEl.videoWidth;
+  var height = videoEl.videoHeight;
   if (width > height) {
     if (width > maxSize) { height = (height * maxSize) / width; width = maxSize; }
   } else {
@@ -100,22 +103,37 @@ function captureFrame(videoEl) {
   return canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
 }
 
-// Camera Viewfinder Component
-function CameraViewfinder({ onCapture, onClose, onFallback }) {
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const [ready, setCameraReady] = useState(false);
-  const [error, setCameraError] = useState('');
+// =============================================
+// FIX 1: In-app browser detection helper
+// =============================================
+function getIsInAppBrowser() {
+  if (typeof navigator === 'undefined') return false;
+  var ua = navigator.userAgent || '';
+  // Detect common in-app browsers
+  if (/FBAN|FBAV|Instagram|Line\/|Twitter|Messenger|WhatsApp|Snapchat/i.test(ua)) return true;
+  // iOS: has iPhone/iPad but no Safari in UA means in-app browser
+  if (/iPhone|iPad|iPod/i.test(ua) && !/Safari/i.test(ua)) return true;
+  return false;
+}
 
-  useEffect(() => {
-    let active = true;
+// =============================================
+// FIX 2: Camera Viewfinder with fixed capture button
+// =============================================
+function CameraViewfinder({ onCapture, onClose, onFallback }) {
+  var videoRef = useRef(null);
+  var streamRef = useRef(null);
+  var [ready, setCameraReady] = useState(false);
+  var [error, setCameraError] = useState('');
+
+  useEffect(function() {
+    var active = true;
     async function startCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        var stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false
         });
-        if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
+        if (!active) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -134,79 +152,104 @@ function CameraViewfinder({ onCapture, onClose, onFallback }) {
       }
     }
     startCamera();
-    return () => {
+    return function() {
       active = false;
-      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      if (streamRef.current) streamRef.current.getTracks().forEach(function(t) { t.stop(); });
     };
   }, []);
 
-  const handleCapture = () => {
+  var handleCapture = function() {
     if (videoRef.current && ready) {
-      const base64 = captureFrame(videoRef.current);
-      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      var base64 = captureFrame(videoRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach(function(t) { t.stop(); });
       onCapture(base64);
     }
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 2000, display: 'flex', flexDirection: 'column' }}>
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: '#000', zIndex: 2000,
+      display: 'flex', flexDirection: 'column',
+      /* FIX: Use dvh for dynamic viewport height, fallback to vh */
+      height: '100vh',
+      height: '100dvh',
+    }}>
+      <style>{[
+        '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }',
+      ].join(' ')}</style>
 
-      {/* Close button */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '48px 16px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)' }}>
+      {/* Close button - top area */}
+      <div style={{
+        flexShrink: 0,
+        padding: '48px 16px 16px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        zIndex: 10,
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)',
+      }}>
         <p style={{ color: '#fff', fontSize: '14px', margin: 0, opacity: 0.8 }}>Point camera at wine label</p>
         <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <X size={18} />
         </button>
       </div>
 
-      {/* Video feed */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ flex: 1, objectFit: 'cover', width: '100%' }}
-      />
+      {/* Video feed - takes remaining space between header and controls */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
 
-      {/* Label guide overlay */}
-      {ready && (
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '70%', height: '40%', border: '2px solid rgba(255,255,255,0.6)', borderRadius: '12px', pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.5)', padding: '3px 10px', borderRadius: '20px' }}>
-            <p style={{ color: '#fff', fontSize: '11px', margin: 0, whiteSpace: 'nowrap' }}>Align label within frame</p>
+        {/* Label guide overlay */}
+        {ready && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '70%', height: '50%', border: '2px solid rgba(255,255,255,0.6)', borderRadius: '12px', pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.5)', padding: '3px 10px', borderRadius: '20px' }}>
+              <p style={{ color: '#fff', fontSize: '11px', margin: 0, whiteSpace: 'nowrap' }}>Align label within frame</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Error state */}
-      {error && (
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80%', background: 'rgba(0,0,0,0.85)', borderRadius: '16px', padding: '24px', textAlign: 'center' }}>
-          <p style={{ color: '#fff', fontSize: '14px', margin: '0 0 16px', lineHeight: '1.5' }}>{error}</p>
-          <button onClick={onFallback} style={{ background: C.burgundy, color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 24px', fontSize: '14px', cursor: 'pointer', fontWeight: '500' }}>
-            Upload Photo Instead
-          </button>
-        </div>
-      )}
+        {/* Error state */}
+        {error && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80%', background: 'rgba(0,0,0,0.85)', borderRadius: '16px', padding: '24px', textAlign: 'center' }}>
+            <p style={{ color: '#fff', fontSize: '14px', margin: '0 0 16px', lineHeight: '1.5' }}>{error}</p>
+            <button onClick={onFallback} style={{ background: C.burgundy, color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 24px', fontSize: '14px', cursor: 'pointer', fontWeight: '500' }}>
+              Upload Photo Instead
+            </button>
+          </div>
+        )}
 
-      {/* Loading state */}
-      {!ready && !error && (
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-          <Loader size={32} style={{ color: '#fff', animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
-          <p style={{ color: '#fff', fontSize: '14px', margin: 0 }}>Starting camera...</p>
-        </div>
-      )}
+        {/* Loading state */}
+        {!ready && !error && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+            <Loader size={32} style={{ color: '#fff', animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
+            <p style={{ color: '#fff', fontSize: '14px', margin: 0 }}>Starting camera...</p>
+          </div>
+        )}
+      </div>
 
-      {/* Bottom controls */}
-      <div style={{ padding: '24px 24px 48px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' }}>
+      {/* FIX: Bottom controls - flexShrink: 0 ensures this never gets clipped */}
+      <div style={{
+        flexShrink: 0,
+        paddingTop: '20px',
+        paddingBottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
+        paddingLeft: '24px',
+        paddingRight: '24px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.4))',
+      }}>
         {ready && (
           <button
             onClick={handleCapture}
-            style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#fff', border: '4px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#fff', border: '4px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           >
             <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#fff', border: '2px solid #ddd' }} />
           </button>
         )}
-        <button onClick={onFallback} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.4)', color: 'rgba(255,255,255,0.8)', borderRadius: '20px', padding: '8px 20px', fontSize: '12px', cursor: 'pointer' }}>
+        <button onClick={onFallback} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.4)', color: 'rgba(255,255,255,0.8)', borderRadius: '20px', padding: '8px 20px', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
           Upload from gallery instead
         </button>
       </div>
@@ -215,108 +258,121 @@ function CameraViewfinder({ onCapture, onClose, onFallback }) {
 }
 
 export default function MiVinoApp() {
-  const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
-  const [isPremium, setIsPremium] = useState(false);
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  const [wines, setWines] = useState([]);
-  const [winesLoading, setWinesLoading] = useState(true);
-  const [sortOrder, setSortOrder] = useState('newest');
-  const [groupBy, setGroupBy] = useState('vintage');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newWine, setNewWine] = useState({ name: '', vintage: 2020, price: 0 });
-  const [expandedWine, setExpandedWine] = useState(null);
-  const [editingType, setEditingType] = useState(null);
-  const [scanning, setScanning] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
-  const [scanError, setScanError] = useState('');
-  const [editingWine, setEditingWine] = useState(null);
-  const [editForm, setEditForm] = useState({});
-  const [scannedWine, setScannedWine] = useState(null);
-  const [scannedPrice, setScannedPrice] = useState('');
-  const fileInputRef = useRef(null);
+  var { user, isLoaded } = useUser();
+  var { signOut } = useClerk();
+  var [isPremium, setIsPremium] = useState(false);
+  var [showUpgrade, setShowUpgrade] = useState(false);
+  var [wines, setWines] = useState([]);
+  var [winesLoading, setWinesLoading] = useState(true);
+  var [sortOrder, setSortOrder] = useState('newest');
+  var [groupBy, setGroupBy] = useState('vintage');
+  var [showAddForm, setShowAddForm] = useState(false);
+  var [newWine, setNewWine] = useState({ name: '', vintage: 2020, price: 0 });
+  var [expandedWine, setExpandedWine] = useState(null);
+  var [editingType, setEditingType] = useState(null);
+  var [scanning, setScanning] = useState(false);
+  var [showCamera, setShowCamera] = useState(false);
+  var [scanError, setScanError] = useState('');
+  var [editingWine, setEditingWine] = useState(null);
+  var [editForm, setEditForm] = useState({});
+  var [scannedWine, setScannedWine] = useState(null);
+  var [scannedPrice, setScannedPrice] = useState('');
+  var fileInputRef = useRef(null);
+
+  // =============================================
+  // FIX 3: In-app browser detection state
+  // =============================================
+  var [isInAppBrowser, setIsInAppBrowser] = useState(false);
+
+  useEffect(function() {
+    setIsInAppBrowser(getIsInAppBrowser());
+  }, []);
 
   // Load wines from API when user logs in
-  useEffect(() => {
+  useEffect(function() {
     if (user?.id) {
       setWinesLoading(true);
       fetch('/api/wines')
-        .then(r => r.json())
-        .then(data => {
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
           if (Array.isArray(data)) {
-            setWines(data.map(w => ({
-              id: w.id,
-              name: w.name,
-              vintage: w.vintage,
-              price: w.price,
-              wineType: w.wine_type,
-              aiData: w.ai_data,
-              aiLoading: false,
-              aiError: false,
-            })));
+            setWines(data.map(function(w) {
+              return {
+                id: w.id,
+                name: w.name,
+                vintage: w.vintage,
+                price: w.price,
+                wineType: w.wine_type,
+                aiData: w.ai_data,
+                aiLoading: false,
+                aiError: false,
+              };
+            }));
           }
           setWinesLoading(false);
         })
-        .catch(() => setWinesLoading(false));
+        .catch(function() { setWinesLoading(false); });
     }
   }, [user]);
 
   // Check subscription status
-  useEffect(() => {
+  useEffect(function() {
     if (user?.id) {
       // Check if returning from successful Stripe payment
-      const params = new URLSearchParams(window.location.search);
+      var params = new URLSearchParams(window.location.search);
       if (params.get('upgraded') === 'true') {
         setIsPremium(true);
         window.history.replaceState({}, '', '/');
         return;
       }
-      fetch(`/api/check-subscription?userId=${user.id}`)
-        .then(r => r.json())
-        .then(data => setIsPremium(data.isPremium))
-        .catch(() => setIsPremium(false));
+      fetch('/api/check-subscription?userId=' + user.id)
+        .then(function(r) { return r.json(); })
+        .then(function(data) { setIsPremium(data.isPremium); })
+        .catch(function() { setIsPremium(false); });
     }
   }, [user]);
 
-  const processBase64 = useCallback(async (base64) => {
+  var processBase64 = useCallback(async function(base64) {
     setShowCamera(false);
     setScanning(true);
     setScanError('');
     try {
-      const response = await fetch('/api/scan-label', {
+      var response = await fetch('/api/scan-label', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: base64 })
       });
-      const data = await response.json();
+      var data = await response.json();
       if (data.error) { setScanError(data.error); setScanning(false); return; }
-      const { wineName, vintage, region = '' } = data;
+      var wineName = data.wineName;
+      var vintage = data.vintage;
+      var region = data.region || '';
       setScanning(false);
       if (!isPremium && wines.length >= 5) {
         setShowUpgrade(true);
         return;
       }
-      setScannedWine({ name: wineName, vintage, region });
+      setScannedWine({ name: wineName, vintage: vintage, region: region });
       setScannedPrice('');
-    } catch {
+    } catch (err) {
       setScanError('Could not process image. Please try again.');
       setScanning(false);
     }
-  }, []);
+  }, [isPremium, wines.length]);
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+  var handleFileUpload = async function(e) {
+    var file = e.target.files?.[0];
     if (!file) return;
     try {
-      const base64 = await resizeImage(file);
+      var base64 = await resizeImage(file);
       await processBase64(base64);
-    } catch {
+    } catch (err) {
       setScanError('Could not read image file. Please try again.');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleConfirmScannedWine = async (priceValue) => {
+  var handleConfirmScannedWine = async function(priceValue) {
     if (!scannedWine) return;
     if (!isPremium && wines.length >= 5) {
       setScannedWine(null);
@@ -324,65 +380,67 @@ export default function MiVinoApp() {
       setShowUpgrade(true);
       return;
     }
-    const { name, vintage, region } = scannedWine;
-    const price = parseFloat(priceValue) || 0;
-    const tempId = Date.now();
-    const guessedType = detectWineType(name, null);
-    setWines(prev => [...prev, { name, vintage, price, id: tempId, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
+    var name = scannedWine.name;
+    var vintage = scannedWine.vintage;
+    var region = scannedWine.region;
+    var price = parseFloat(priceValue) || 0;
+    var tempId = Date.now();
+    var guessedType = detectWineType(name, null);
+    setWines(function(prev) { return [...prev, { name: name, vintage: vintage, price: price, id: tempId, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]; });
     setExpandedWine(tempId);
     setScannedWine(null);
     setScannedPrice('');
     try {
-      const aiData = await fetchWineInfo(name, vintage, region);
-      const aiType = detectWineType(name, aiData);
-      const saved = await fetch('/api/wines', {
+      var aiData = await fetchWineInfo(name, vintage, region);
+      var aiType = detectWineType(name, aiData);
+      var saved = await fetch('/api/wines', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, vintage, price, wine_type: aiType, ai_data: aiData })
-      }).then(r => r.json());
-      setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: saved?.id || tempId, aiData, aiLoading: false, wineType: aiType } : w));
-    } catch {
-      setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w));
+        body: JSON.stringify({ name: name, vintage: vintage, price: price, wine_type: aiType, ai_data: aiData })
+      }).then(function(r) { return r.json(); });
+      setWines(function(prev) { return prev.map(function(w) { return w.id === tempId ? { ...w, id: saved?.id || tempId, aiData: aiData, aiLoading: false, wineType: aiType } : w; }); });
+    } catch (err) {
+      setWines(function(prev) { return prev.map(function(w) { return w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w; }); });
     }
   };
 
-  const handleRetryAiInfo = async (wine) => {
-    setWines(prev => prev.map(w => w.id === wine.id ? { ...w, aiLoading: true, aiError: false } : w));
+  var handleRetryAiInfo = async function(wine) {
+    setWines(function(prev) { return prev.map(function(w) { return w.id === wine.id ? { ...w, aiLoading: true, aiError: false } : w; }); });
     try {
-      const aiData = await fetchWineInfo(wine.name, wine.vintage, '');
-      const aiType = detectWineType(wine.name, aiData);
-      setWines(prev => prev.map(w => w.id === wine.id ? { ...w, aiData, aiLoading: false, wineType: aiType } : w));
-      await fetch(`/api/wines?id=${wine.id}`, {
+      var aiData = await fetchWineInfo(wine.name, wine.vintage, '');
+      var aiType = detectWineType(wine.name, aiData);
+      setWines(function(prev) { return prev.map(function(w) { return w.id === wine.id ? { ...w, aiData: aiData, aiLoading: false, wineType: aiType } : w; }); });
+      await fetch('/api/wines?id=' + wine.id, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ai_data: aiData, wine_type: aiType })
       });
-    } catch {
-      setWines(prev => prev.map(w => w.id === wine.id ? { ...w, aiLoading: false, aiError: true } : w));
+    } catch (err) {
+      setWines(function(prev) { return prev.map(function(w) { return w.id === wine.id ? { ...w, aiLoading: false, aiError: true } : w; }); });
     }
   };
 
-  const handleEditWine = (wine) => {
+  var handleEditWine = function(wine) {
     setEditingWine(wine.id);
     setEditForm({ name: wine.name, vintage: wine.vintage, price: wine.price, wineType: wine.wineType });
   };
 
-  const handleSaveEdit = async (id) => {
-    const vintage = parseInt(editForm.vintage);
-    const price = parseFloat(editForm.price);
+  var handleSaveEdit = async function(id) {
+    var vintage = parseInt(editForm.vintage);
+    var price = parseFloat(editForm.price);
     if (!editForm.name || isNaN(vintage) || isNaN(price)) return;
-    setWines(prev => prev.map(w => w.id === id ? { ...w, name: editForm.name, vintage, price, wineType: editForm.wineType } : w));
+    setWines(function(prev) { return prev.map(function(w) { return w.id === id ? { ...w, name: editForm.name, vintage: vintage, price: price, wineType: editForm.wineType } : w; }); });
     setEditingWine(null);
-    await fetch(`/api/wines?id=${id}`, {
+    await fetch('/api/wines?id=' + id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editForm.name, vintage, price, wine_type: editForm.wineType })
+      body: JSON.stringify({ name: editForm.name, vintage: vintage, price: price, wine_type: editForm.wineType })
     });
   };
 
-  const handleUpgrade = async () => {
+  var handleUpgrade = async function() {
     try {
-      const response = await fetch('/api/create-checkout', {
+      var response = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -390,74 +448,74 @@ export default function MiVinoApp() {
           email: user?.emailAddresses?.[0]?.emailAddress
         })
       });
-      const data = await response.json();
+      var data = await response.json();
       if (data.url) window.location.href = data.url;
     } catch (e) {
       alert('Could not start checkout. Please try again.');
     }
   };
 
-  const handleAddWine = async () => {
+  var handleAddWine = async function() {
     if (!newWine.name) return;
     if (!isPremium && wines.length >= 5) {
       setShowUpgrade(true);
       return;
     }
-    const vintage = parseInt(newWine.vintage);
-    const price = parseFloat(newWine.price);
+    var vintage = parseInt(newWine.vintage);
+    var price = parseFloat(newWine.price);
     if (vintage < 1800 || vintage > currentYear) { alert('Please enter a valid vintage year.'); return; }
     if (price < 0) { alert('Price cannot be negative.'); return; }
-    const tempId = Date.now();
-    const guessedType = detectWineType(newWine.name, null);
-    setWines(prev => [...prev, { ...newWine, vintage, price, id: tempId, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]);
+    var tempId = Date.now();
+    var guessedType = detectWineType(newWine.name, null);
+    setWines(function(prev) { return [...prev, { ...newWine, vintage: vintage, price: price, id: tempId, wineType: guessedType, aiData: null, aiLoading: true, aiError: false }]; });
     setNewWine({ name: '', vintage: 2020, price: 0 });
     setShowAddForm(false);
     setExpandedWine(tempId);
     try {
-      const aiData = await fetchWineInfo(newWine.name, vintage, '');
-      const aiType = detectWineType(newWine.name, aiData);
+      var aiData = await fetchWineInfo(newWine.name, vintage, '');
+      var aiType = detectWineType(newWine.name, aiData);
       // Save to API
-      const saved = await fetch('/api/wines', {
+      var saved = await fetch('/api/wines', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newWine.name, vintage, price, wine_type: aiType, ai_data: aiData })
-      }).then(r => r.json());
-      setWines(prev => prev.map(w => w.id === tempId ? { ...w, id: saved.id || tempId, aiData, aiLoading: false, wineType: aiType } : w));
-    } catch {
-      setWines(prev => prev.map(w => w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w));
+        body: JSON.stringify({ name: newWine.name, vintage: vintage, price: price, wine_type: aiType, ai_data: aiData })
+      }).then(function(r) { return r.json(); });
+      setWines(function(prev) { return prev.map(function(w) { return w.id === tempId ? { ...w, id: saved.id || tempId, aiData: aiData, aiLoading: false, wineType: aiType } : w; }); });
+    } catch (err) {
+      setWines(function(prev) { return prev.map(function(w) { return w.id === tempId ? { ...w, aiLoading: false, aiError: true } : w; }); });
     }
   };
 
-  const handleRemoveWine = async (id) => {
-    setWines(wines.filter(w => w.id !== id));
+  var handleRemoveWine = async function(id) {
+    setWines(wines.filter(function(w) { return w.id !== id; }));
     if (expandedWine === id) setExpandedWine(null);
-    await fetch(`/api/wines?id=${id}`, { method: 'DELETE' });
+    await fetch('/api/wines?id=' + id, { method: 'DELETE' });
   };
 
-  const handleChangeType = async (id, type) => {
-    setWines(prev => prev.map(w => w.id === id ? { ...w, wineType: type } : w));
+  var handleChangeType = async function(id, type) {
+    setWines(function(prev) { return prev.map(function(w) { return w.id === id ? { ...w, wineType: type } : w; }); });
     setEditingType(null);
-    await fetch(`/api/wines?id=${id}`, {
+    await fetch('/api/wines?id=' + id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wine_type: type })
     });
   };
 
-  const peakCount = wines.filter(isInPeakWindow).length;
-  const totalValue = wines.reduce((sum, w) => sum + (w.price || 0), 0);
+  var peakCount = wines.filter(isInPeakWindow).length;
+  var totalValue = wines.reduce(function(sum, w) { return sum + (w.price || 0); }, 0);
 
-  const inputStyle = {
+  var inputStyle = {
     width: '100%', padding: '12px 14px', marginBottom: '12px',
-    background: C.cream, border: `1px solid ${C.border}`, borderRadius: '10px',
+    background: C.cream, border: '1px solid ' + C.border, borderRadius: '10px',
     color: C.burgundy, fontSize: '15px', boxSizing: 'border-box', outline: 'none',
   };
 
   // Sort and group wines
-  const typeOrder = { red: 0, white: 1, sparkling: 2, rose: 3, orange: 4 };
+  var typeOrder = { red: 0, white: 1, sparkling: 2, rose: 3, orange: 4 };
 
-  const getSortedWines = () => {
-    return [...wines].sort((a, b) => {
+  var getSortedWines = function() {
+    return [...wines].sort(function(a, b) {
       if (sortOrder === 'newest') return b.vintage - a.vintage;
       if (sortOrder === 'oldest') return a.vintage - b.vintage;
       if (sortOrder === 'name') return a.name.localeCompare(b.name);
@@ -466,12 +524,12 @@ export default function MiVinoApp() {
     });
   };
 
-  const getGroupedWines = () => {
-    const sorted = getSortedWines();
+  var getGroupedWines = function() {
+    var sorted = getSortedWines();
     if (groupBy === 'none') return { 'All Wines': sorted };
-    const groups = {};
-    sorted.forEach(wine => {
-      const key = groupBy === 'vintage'
+    var groups = {};
+    sorted.forEach(function(wine) {
+      var key = groupBy === 'vintage'
         ? wine.vintage?.toString()
         : wine.wineType?.charAt(0).toUpperCase() + wine.wineType?.slice(1);
       if (!groups[key]) groups[key] = [];
@@ -479,17 +537,17 @@ export default function MiVinoApp() {
     });
     if (groupBy === 'type') {
       return Object.fromEntries(
-        Object.entries(groups).sort((a, b) => (typeOrder[a[0].toLowerCase()] ?? 9) - (typeOrder[b[0].toLowerCase()] ?? 9))
+        Object.entries(groups).sort(function(a, b) { return (typeOrder[a[0].toLowerCase()] ?? 9) - (typeOrder[b[0].toLowerCase()] ?? 9); })
       );
     }
     return groups;
   };
 
   // Wines nearing peak window (within 1 year)
-  const nearingPeak = wines.filter(w => {
+  var nearingPeak = wines.filter(function(w) {
     if (!w.aiData?.peakWindow) return false;
-    const { start, end } = w.aiData.peakWindow;
-    const now = currentYear;
+    var start = w.aiData.peakWindow.start;
+    var now = currentYear;
     return start - now === 1 || (now < start && start - now <= 1);
   });
 
@@ -498,14 +556,30 @@ export default function MiVinoApp() {
     return (
       <div style={{ minHeight: '100vh', background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader size={32} style={{ color: C.burgundy, animation: 'spin 1s linear infinite' }} />
-        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <style>{('@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }')}</style>
+      </div>
+    );
+  }
+
+  // =============================================
+  // FIX 4: Redirect to sign-in if not logged in
+  // =============================================
+  if (!user) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/sign-in';
+    }
+    return (
+      <div style={{ minHeight: '100vh', background: C.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px' }}>
+        <Loader size={32} style={{ color: C.burgundy, animation: 'spin 1s linear infinite' }} />
+        <p style={{ color: C.muted, fontSize: '14px', margin: 0 }}>Redirecting to sign in...</p>
+        <style>{('@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }')}</style>
       </div>
     );
   }
 
   return (
     <div style={{ minHeight: '100vh', background: C.cream, fontFamily: 'system-ui, sans-serif' }}>
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{('@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }')}</style>
 
       {/* Hidden file input fallback */}
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
@@ -514,13 +588,31 @@ export default function MiVinoApp() {
       {showCamera && (
         <CameraViewfinder
           onCapture={processBase64}
-          onClose={() => setShowCamera(false)}
-          onFallback={() => { setShowCamera(false); fileInputRef.current?.click(); }}
+          onClose={function() { setShowCamera(false); }}
+          onFallback={function() { setShowCamera(false); fileInputRef.current?.click(); }}
         />
       )}
 
+      {/* ================================================= */}
+      {/* FIX 5: In-app browser warning banner               */}
+      {/* ================================================= */}
+      {isInAppBrowser && (
+        <div style={{
+          background: '#fff3e0', borderBottom: '1px solid #f0c060',
+          padding: '12px 16px', textAlign: 'center', zIndex: 3000,
+        }}>
+          <p style={{ margin: 0, color: '#8a5000', fontSize: '13px', lineHeight: '1.5' }}>
+            For the best experience (camera, scanning), open MiVino in Safari.
+            <br />
+            <span style={{ fontSize: '12px', opacity: 0.8 }}>
+              Tap the <strong>{'\u2022\u2022\u2022'}</strong> menu above and choose "Open in Safari" or "Open in Browser"
+            </span>
+          </p>
+        </div>
+      )}
+
       {/* Header */}
-      <div style={{ background: C.white, padding: '48px 20px 20px', borderBottom: `1px solid ${C.borderLight}` }}>
+      <div style={{ background: C.white, padding: '48px 20px 20px', borderBottom: '1px solid ' + C.borderLight }}>
         <div style={{ maxWidth: '500px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <svg width="44" height="44" viewBox="-5 -5 58 54" xmlns="http://www.w3.org/2000/svg">
@@ -538,15 +630,15 @@ export default function MiVinoApp() {
             <div>
               <p style={{ color: C.muted, fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 4px' }}>Your Cellar</p>
               <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '500', color: C.burgundy }}>MiVino</h1>
-              <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0]} · {wines.length}{!isPremium ? '/5' : ''} {wines.length === 1 ? 'bottle' : 'bottles'} {!isPremium ? '· Free' : '· Premium'}</p>
+              <p style={{ margin: '3px 0 0', color: C.muted, fontSize: '13px' }}>{user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0]} {'\u00B7'} {wines.length}{!isPremium ? '/5' : ''} {wines.length === 1 ? 'bottle' : 'bottles'} {!isPremium ? '\u00B7 Free' : '\u00B7 Premium'}</p>
             </div>
           </div>
           <button
-            onClick={async () => {
+            onClick={async function() {
               await signOut();
               window.location.href = '/sign-in';
             }}
-            style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: '12px', padding: '6px 12px', borderRadius: '8px' }}
+            style={{ background: 'none', border: '1px solid ' + C.border, color: C.muted, cursor: 'pointer', fontSize: '12px', padding: '6px 12px', borderRadius: '8px' }}
           >
             Sign out
           </button>
@@ -559,25 +651,27 @@ export default function MiVinoApp() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
           {[
             { label: 'Bottles', value: wines.length, color: C.burgundy },
-            { label: 'Value', value: `$${totalValue}`, color: C.burgundy },
+            { label: 'Value', value: '$' + totalValue, color: C.burgundy },
             { label: 'Peak Now', value: peakCount, color: peakCount > 0 ? C.sageDark : C.muted },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ background: C.white, borderRadius: '14px', padding: '14px 12px', border: `1px solid ${C.borderLight}` }}>
-              <p style={{ color: C.muted, fontSize: '10px', margin: '0 0 6px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</p>
-              <p style={{ fontSize: '22px', fontWeight: '500', margin: 0, color }}>{value}</p>
-            </div>
-          ))}
+          ].map(function(item) {
+            return (
+              <div key={item.label} style={{ background: C.white, borderRadius: '14px', padding: '14px 12px', border: '1px solid ' + C.borderLight }}>
+                <p style={{ color: C.muted, fontSize: '10px', margin: '0 0 6px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{item.label}</p>
+                <p style={{ fontSize: '22px', fontWeight: '500', margin: 0, color: item.color }}>{item.value}</p>
+              </div>
+            );
+          })}
         </div>
 
         {/* Action Buttons */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-          <button onClick={() => setShowAddForm(true)} style={{ padding: '14px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '12px', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}>
+          <button onClick={function() { setShowAddForm(true); }} style={{ padding: '14px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '12px', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}>
             + Add Wine
           </button>
           <button
-            onClick={() => { setScanError(''); setShowCamera(true); }}
+            onClick={function() { setScanError(''); setShowCamera(true); }}
             disabled={scanning}
-            style={{ padding: '14px', background: C.white, color: scanning ? C.muted : C.burgundy, border: `1px solid ${C.border}`, borderRadius: '12px', fontWeight: '500', fontSize: '14px', cursor: scanning ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            style={{ padding: '14px', background: C.white, color: scanning ? C.muted : C.burgundy, border: '1px solid ' + C.border, borderRadius: '12px', fontWeight: '500', fontSize: '14px', cursor: scanning ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
             {scanning ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={14} />}
             {scanning ? 'Scanning...' : 'Scan Label'}
@@ -588,7 +682,7 @@ export default function MiVinoApp() {
         {scanError && (
           <div style={{ background: '#fdf0f0', border: '1px solid #f0c8c8', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px' }}>
             <p style={{ margin: '0 0 8px', color: '#b91c1c', fontSize: '13px' }}>{scanError}</p>
-            <button onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.burgundy, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
+            <button onClick={function() { fileInputRef.current?.click(); }} style={{ background: 'none', border: '1px solid ' + C.border, color: C.burgundy, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
               Upload photo instead
             </button>
           </div>
@@ -597,13 +691,13 @@ export default function MiVinoApp() {
         {/* Peak Alert Banner */}
         {nearingPeak.length > 0 && (
           <div style={{ background: '#fff8e6', border: '1px solid #f0d080', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '16px' }}>⏰</span>
+            <span style={{ fontSize: '16px' }}>{'\u23F0'}</span>
             <div>
               <p style={{ margin: 0, color: '#8a6000', fontSize: '13px', fontWeight: '500' }}>
-                {nearingPeak.length === 1 ? '1 wine is approaching' : `${nearingPeak.length} wines are approaching`} peak drinking window
+                {nearingPeak.length === 1 ? '1 wine is approaching' : nearingPeak.length + ' wines are approaching'} peak drinking window
               </p>
               <p style={{ margin: '2px 0 0', color: '#b08000', fontSize: '12px' }}>
-                {nearingPeak.map(w => w.name).join(', ')}
+                {nearingPeak.map(function(w) { return w.name; }).join(', ')}
               </p>
             </div>
           </div>
@@ -611,15 +705,15 @@ export default function MiVinoApp() {
 
         {/* Sort & Group Controls */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-          <select value={sortOrder} onChange={e => setSortOrder(e.target.value)}
-            style={{ flex: 1, padding: '8px 10px', background: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.burgundy, fontSize: '12px', cursor: 'pointer' }}>
+          <select value={sortOrder} onChange={function(e) { setSortOrder(e.target.value); }}
+            style={{ flex: 1, padding: '8px 10px', background: C.white, border: '1px solid ' + C.border, borderRadius: '8px', color: C.burgundy, fontSize: '12px', cursor: 'pointer' }}>
             <option value="newest">Vintage: Newest first</option>
             <option value="oldest">Vintage: Oldest first</option>
             <option value="name">Name: A-Z</option>
             <option value="price">Price: High-Low</option>
           </select>
-          <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
-            style={{ flex: 1, padding: '8px 10px', background: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.burgundy, fontSize: '12px', cursor: 'pointer' }}>
+          <select value={groupBy} onChange={function(e) { setGroupBy(e.target.value); }}
+            style={{ flex: 1, padding: '8px 10px', background: C.white, border: '1px solid ' + C.border, borderRadius: '8px', color: C.burgundy, fontSize: '12px', cursor: 'pointer' }}>
             <option value="vintage">Group by Vintage</option>
             <option value="type">Group by Type</option>
             <option value="none">No Grouping</option>
@@ -637,106 +731,115 @@ export default function MiVinoApp() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {Object.entries(getGroupedWines()).map(([group, groupWines]) => (
+            {Object.entries(getGroupedWines()).map(function(entry) {
+              var group = entry[0];
+              var groupWines = entry[1];
+              return (
               <div key={group} style={{ marginBottom: '12px' }}>
                 {groupBy !== 'none' && (
                   <p style={{ color: C.muted, fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 8px', paddingLeft: '2px' }}>{group}</p>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {groupWines.map(wine => {
-                  const isPeak = isInPeakWindow(wine);
-                  const isExpanded = expandedWine === wine.id;
-                  const wineType = WINE_TYPES[wine.wineType || 'red'];
-                  const isEditingThisType = editingType === wine.id;
+                {groupWines.map(function(wine) {
+                  var isPeak = isInPeakWindow(wine);
+                  var isExpanded = expandedWine === wine.id;
+                  var wineType = WINE_TYPES[wine.wineType || 'red'];
+                  var isEditingThisType = editingType === wine.id;
                   return (
-                <div key={wine.id} style={{ background: C.white, borderRadius: '16px', border: `1px solid ${isPeak ? C.sageBorder : C.borderLight}`, overflow: 'hidden' }}>
+                <div key={wine.id} style={{ background: C.white, borderRadius: '16px', border: '1px solid ' + (isPeak ? C.sageBorder : C.borderLight), overflow: 'hidden' }}>
                   <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
                         <p style={{ margin: 0, fontWeight: '500', fontSize: '15px', color: wineType.color }}>{wine.name}</p>
                         {isPeak && (
-                          <span style={{ fontSize: '10px', background: C.sageBg, color: C.sageDark, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${C.sageBorder}` }}>Peak Now</span>
+                          <span style={{ fontSize: '10px', background: C.sageBg, color: C.sageDark, padding: '2px 8px', borderRadius: '20px', border: '1px solid ' + C.sageBorder }}>Peak Now</span>
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <p style={{ margin: 0, color: C.muted, fontSize: '12px' }}>
-                          {wine.vintage}{wine.aiData?.region ? ` · ${wine.aiData.region}` : ''}
+                          {wine.vintage}{wine.aiData?.region ? ' \u00B7 ' + wine.aiData.region : ''}
                         </p>
                         <button
-                          onClick={() => setEditingType(isEditingThisType ? null : wine.id)}
-                          style={{ background: wineType.bg, border: `1px solid ${wineType.border}`, color: wineType.color, fontSize: '10px', padding: '2px 8px', borderRadius: '20px', cursor: 'pointer' }}
+                          onClick={function() { setEditingType(isEditingThisType ? null : wine.id); }}
+                          style={{ background: wineType.bg, border: '1px solid ' + wineType.border, color: wineType.color, fontSize: '10px', padding: '2px 8px', borderRadius: '20px', cursor: 'pointer' }}
                         >
                           {wineType.label}
                         </button>
                       </div>
                       {isEditingThisType && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
-                          {Object.entries(WINE_TYPES).map(([key, t]) => (
-                            <button key={key} onClick={() => handleChangeType(wine.id, key)}
-                              style={{ background: t.bg, border: `1px solid ${t.border}`, color: t.color, fontSize: '11px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontWeight: wine.wineType === key ? '600' : '400' }}>
+                          {Object.entries(WINE_TYPES).map(function(typeEntry) {
+                            var key = typeEntry[0];
+                            var t = typeEntry[1];
+                            return (
+                            <button key={key} onClick={function() { handleChangeType(wine.id, key); }}
+                              style={{ background: t.bg, border: '1px solid ' + t.border, color: t.color, fontSize: '11px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontWeight: wine.wineType === key ? '600' : '400' }}>
                               {t.label}
                             </button>
-                          ))}
+                          ); })}
                         </div>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '8px' }}>
                       <p style={{ margin: 0, color: C.burgundy, fontWeight: '500', fontSize: '14px' }}>${wine.price}</p>
-                      <button onClick={() => setExpandedWine(isExpanded ? null : wine.id)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }} aria-label="Toggle details">
+                      <button onClick={function() { setExpandedWine(isExpanded ? null : wine.id); }} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }} aria-label="Toggle details">
                         {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </button>
-                      <button onClick={() => handleEditWine(wine)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }} aria-label="Edit wine">
-                        ✏️
+                      <button onClick={function() { handleEditWine(wine); }} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }} aria-label="Edit wine">
+                        {'\u270F\uFE0F'}
                       </button>
-                      <button onClick={() => handleRemoveWine(wine.id)} style={{ background: 'none', border: 'none', color: C.border, cursor: 'pointer', padding: '4px' }} aria-label="Remove wine">
+                      <button onClick={function() { handleRemoveWine(wine.id); }} style={{ background: 'none', border: 'none', color: C.border, cursor: 'pointer', padding: '4px' }} aria-label="Remove wine">
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
                   {editingWine === wine.id && (
-                    <div style={{ borderTop: `1px solid ${C.borderLight}`, padding: '14px 16px', background: C.cream, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ borderTop: '1px solid ' + C.borderLight, padding: '14px 16px', background: C.cream, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <input
                         value={editForm.name}
-                        onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                        onChange={function(e) { setEditForm(function(f) { return { ...f, name: e.target.value }; }); }}
                         placeholder="Wine name"
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: `1px solid ${C.border}`, fontSize: '14px', color: C.burgundy, background: C.white }}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid ' + C.border, fontSize: '14px', color: C.burgundy, background: C.white }}
                       />
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <input
                           type="number"
                           value={editForm.vintage}
-                          onChange={e => setEditForm(f => ({ ...f, vintage: e.target.value }))}
+                          onChange={function(e) { setEditForm(function(f) { return { ...f, vintage: e.target.value }; }); }}
                           placeholder="Vintage"
-                          style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: `1px solid ${C.border}`, fontSize: '14px', color: C.burgundy, background: C.white }}
+                          style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid ' + C.border, fontSize: '14px', color: C.burgundy, background: C.white }}
                         />
                         <input
                           type="number"
                           value={editForm.price}
-                          onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
+                          onChange={function(e) { setEditForm(function(f) { return { ...f, price: e.target.value }; }); }}
                           placeholder="Price"
-                          style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: `1px solid ${C.border}`, fontSize: '14px', color: C.burgundy, background: C.white }}
+                          style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid ' + C.border, fontSize: '14px', color: C.burgundy, background: C.white }}
                         />
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {Object.entries(WINE_TYPES).map(([key, t]) => (
-                          <button key={key} onClick={() => setEditForm(f => ({ ...f, wineType: key }))}
-                            style={{ background: editForm.wineType === key ? t.bg : C.white, border: `1px solid ${editForm.wineType === key ? t.border : C.border}`, color: editForm.wineType === key ? t.color : C.muted, fontSize: '11px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontWeight: editForm.wineType === key ? '600' : '400' }}>
+                        {Object.entries(WINE_TYPES).map(function(typeEntry) {
+                          var key = typeEntry[0];
+                          var t = typeEntry[1];
+                          return (
+                          <button key={key} onClick={function() { setEditForm(function(f) { return { ...f, wineType: key }; }); }}
+                            style={{ background: editForm.wineType === key ? t.bg : C.white, border: '1px solid ' + (editForm.wineType === key ? t.border : C.border), color: editForm.wineType === key ? t.color : C.muted, fontSize: '11px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontWeight: editForm.wineType === key ? '600' : '400' }}>
                             {t.label}
                           </button>
-                        ))}
+                        ); })}
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => handleSaveEdit(wine.id)} style={{ flex: 1, padding: '9px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                        <button onClick={function() { handleSaveEdit(wine.id); }} style={{ flex: 1, padding: '9px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
                           Save
                         </button>
-                        <button onClick={() => setEditingWine(null)} style={{ flex: 1, padding: '9px', background: 'none', color: C.muted, border: `1px solid ${C.border}`, borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                        <button onClick={function() { setEditingWine(null); }} style={{ flex: 1, padding: '9px', background: 'none', color: C.muted, border: '1px solid ' + C.border, borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
                           Cancel
                         </button>
                       </div>
                     </div>
                   )}
                   {isExpanded && (
-                    <div style={{ borderTop: `1px solid ${C.borderLight}`, padding: '16px' }}>
+                    <div style={{ borderTop: '1px solid ' + C.borderLight, padding: '16px' }}>
                       {wine.aiLoading && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: C.muted }}>
                           <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} />
@@ -746,13 +849,13 @@ export default function MiVinoApp() {
                       {wine.aiError && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           <p style={{ color: '#b91c1c', fontSize: '13px', margin: 0 }}>Could not fetch wine info.</p>
-                          <button onClick={() => handleRetryAiInfo(wine)} style={{ alignSelf: 'flex-start', background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                          <button onClick={function() { handleRetryAiInfo(wine); }} style={{ alignSelf: 'flex-start', background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
                             Retry AI sommelier
                           </button>
                         </div>
                       )}
                       {!wine.aiLoading && !wine.aiError && !wine.aiData && (
-                        <button onClick={() => handleRetryAiInfo(wine)} style={{ background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                        <button onClick={function() { handleRetryAiInfo(wine); }} style={{ background: C.burgundy, color: C.white, border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
                           Load AI sommelier info
                         </button>
                       )}
@@ -771,9 +874,11 @@ export default function MiVinoApp() {
                           <div>
                             <p style={{ margin: '0 0 8px', color: C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Food Pairings</p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                              {wine.aiData.foodPairings?.map((food, i) => (
-                                <span key={i} style={{ background: C.cream, color: C.body, fontSize: '12px', padding: '4px 10px', borderRadius: '20px', border: `1px solid ${C.border}` }}>{food}</span>
-                              ))}
+                              {wine.aiData.foodPairings?.map(function(food, i) {
+                                return (
+                                  <span key={i} style={{ background: C.cream, color: C.body, fontSize: '12px', padding: '4px 10px', borderRadius: '20px', border: '1px solid ' + C.border }}>{food}</span>
+                                );
+                              })}
                             </div>
                           </div>
                           {wine.aiData.winemaking && (
@@ -782,9 +887,9 @@ export default function MiVinoApp() {
                               <p style={{ margin: 0, color: C.body, fontSize: '13px', lineHeight: '1.6' }}>{wine.aiData.winemaking}</p>
                             </div>
                           )}
-                          <div style={{ background: isPeak ? C.sageBg : C.cream, borderRadius: '10px', padding: '12px', border: `1px solid ${isPeak ? C.sageBorder : C.border}` }}>
+                          <div style={{ background: isPeak ? C.sageBg : C.cream, borderRadius: '10px', padding: '12px', border: '1px solid ' + (isPeak ? C.sageBorder : C.border) }}>
                             <p style={{ margin: '0 0 4px', color: isPeak ? C.sageDark : C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                              Peak Window · {wine.aiData.peakWindow?.start}–{wine.aiData.peakWindow?.end}
+                              Peak Window {'\u00B7'} {wine.aiData.peakWindow?.start}{'\u2013'}{wine.aiData.peakWindow?.end}
                             </p>
                             <p style={{ margin: 0, color: C.body, fontSize: '13px' }}>{wine.aiData.peakSummary}</p>
                           </div>
@@ -793,8 +898,8 @@ export default function MiVinoApp() {
                               <p style={{ margin: '0 0 8px', color: C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Links</p>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                 <a href={wine.aiData.wineryUrl} target="_blank" rel="noopener noreferrer"
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: C.cream, color: C.burgundy, fontSize: '12px', padding: '6px 12px', borderRadius: '20px', border: `1px solid ${C.border}`, textDecoration: 'none', fontWeight: '500' }}>
-                                  🍷 Winery Website
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: C.cream, color: C.burgundy, fontSize: '12px', padding: '6px 12px', borderRadius: '20px', border: '1px solid ' + C.border, textDecoration: 'none', fontWeight: '500' }}>
+                                  {'\uD83C\uDF77'} Winery Website
                                 </a>
                               </div>
                             </div>
@@ -808,7 +913,7 @@ export default function MiVinoApp() {
             })}
                 </div>
               </div>
-            ))}
+            ); })}
           </div>
         )}
       </div>
@@ -819,27 +924,27 @@ export default function MiVinoApp() {
           <div style={{ background: C.white, borderRadius: '20px', padding: '28px 24px', width: '100%', maxWidth: '360px' }}>
             <p style={{ color: C.muted, fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 6px', textAlign: 'center' }}>Wine Scanned</p>
             <h2 style={{ color: C.burgundy, fontSize: '20px', fontWeight: '500', margin: '0 0 4px', textAlign: 'center' }}>{scannedWine.name}</h2>
-            <p style={{ color: C.muted, fontSize: '13px', margin: '0 0 20px', textAlign: 'center' }}>{scannedWine.vintage}{scannedWine.region ? ` · ${scannedWine.region}` : ''}</p>
+            <p style={{ color: C.muted, fontSize: '13px', margin: '0 0 20px', textAlign: 'center' }}>{scannedWine.vintage}{scannedWine.region ? ' \u00B7 ' + scannedWine.region : ''}</p>
 
             <label style={{ display: 'block', color: C.burgundy, fontSize: '13px', fontWeight: '500', marginBottom: '6px' }}>What did you pay for this wine?</label>
-            <div style={{ display: 'flex', alignItems: 'center', background: C.cream, border: `1px solid ${C.border}`, borderRadius: '10px', padding: '10px 14px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', background: C.cream, border: '1px solid ' + C.border, borderRadius: '10px', padding: '10px 14px', marginBottom: '16px' }}>
               <span style={{ color: C.muted, marginRight: '6px', fontSize: '15px' }}>$</span>
               <input
                 type="number"
                 autoFocus
                 value={scannedPrice}
-                onChange={e => setScannedPrice(e.target.value)}
+                onChange={function(e) { setScannedPrice(e.target.value); }}
                 placeholder="0.00"
                 style={{ flex: 1, border: 'none', background: 'none', outline: 'none', fontSize: '15px', color: C.burgundy }}
               />
             </div>
             <p style={{ color: C.muted, fontSize: '11px', margin: '0 0 16px', textAlign: 'center' }}>You can update this later</p>
 
-            <button onClick={() => handleConfirmScannedWine(scannedPrice)} style={{ width: '100%', padding: '13px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '8px' }}>
+            <button onClick={function() { handleConfirmScannedWine(scannedPrice); }} style={{ width: '100%', padding: '13px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '8px' }}>
               Save Wine
             </button>
-            <button onClick={() => handleConfirmScannedWine('0')} style={{ width: '100%', padding: '13px', background: 'none', color: C.muted, border: `1px solid ${C.border}`, borderRadius: '10px', fontSize: '14px', cursor: 'pointer' }}>
-              Skip — Add Without Price
+            <button onClick={function() { handleConfirmScannedWine('0'); }} style={{ width: '100%', padding: '14px', background: 'none', color: C.muted, border: '1px solid ' + C.border, borderRadius: '10px', fontSize: '14px', cursor: 'pointer' }}>
+              Skip {'\u2014'} Add Without Price
             </button>
           </div>
         </div>
@@ -862,15 +967,15 @@ export default function MiVinoApp() {
               <circle cx="44" cy="40" r="4" fill="#5c1a2e"/>
             </svg>
             <h2 style={{ color: C.burgundy, fontSize: '22px', fontWeight: '500', margin: '0 0 8px' }}>Upgrade to Premium</h2>
-            <p style={{ color: C.muted, fontSize: '14px', margin: '0 0 20px', lineHeight: '1.6' }}>You've reached the 5 wine limit on the free plan. Upgrade for unlimited wines, full AI sommelier, and label scanning.</p>
-            <div style={{ background: C.cream, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${C.border}` }}>
+            <p style={{ color: C.muted, fontSize: '14px', margin: '0 0 20px', lineHeight: '1.6' }}>You have reached the 5 wine limit on the free plan. Upgrade for unlimited wines, full AI sommelier, and label scanning.</p>
+            <div style={{ background: C.cream, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: '1px solid ' + C.border }}>
               <p style={{ color: C.burgundy, fontSize: '28px', fontWeight: '500', margin: '0 0 4px' }}>$3.99<span style={{ fontSize: '14px', fontWeight: '400', color: C.muted }}>/month</span></p>
               <p style={{ color: C.muted, fontSize: '12px', margin: 0 }}>Cancel anytime</p>
             </div>
             <button onClick={handleUpgrade} style={{ width: '100%', padding: '14px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '12px', fontWeight: '500', fontSize: '15px', cursor: 'pointer', marginBottom: '10px' }}>
               Upgrade Now
             </button>
-            <button onClick={() => setShowUpgrade(false)} style={{ width: '100%', padding: '14px', background: 'none', color: C.muted, border: `1px solid ${C.border}`, borderRadius: '12px', fontSize: '15px', cursor: 'pointer' }}>
+            <button onClick={function() { setShowUpgrade(false); }} style={{ width: '100%', padding: '14px', background: 'none', color: C.muted, border: '1px solid ' + C.border, borderRadius: '12px', fontSize: '15px', cursor: 'pointer' }}>
               Maybe Later
             </button>
           </div>
@@ -883,14 +988,14 @@ export default function MiVinoApp() {
           <div style={{ background: C.white, borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '28px 24px 36px', width: '100%', maxWidth: '500px' }}>
             <div style={{ width: '36px', height: '4px', background: C.border, borderRadius: '2px', margin: '0 auto 24px' }} />
             <h2 style={{ margin: '0 0 6px', color: C.burgundy, fontWeight: '500', fontSize: '20px' }}>Add Wine</h2>
-            <p style={{ margin: '0 0 20px', color: C.muted, fontSize: '13px' }}>AI will fetch region, tasting notes, type & peak window.</p>
-            <input type="text" placeholder="Wine name (e.g. Barolo, Château Margaux)" value={newWine.name} onChange={e => setNewWine({ ...newWine, name: e.target.value })} style={inputStyle} />
-            <input type="number" placeholder="Vintage year" value={newWine.vintage} onChange={e => setNewWine({ ...newWine, vintage: e.target.value })} style={inputStyle} />
-            <input type="number" placeholder="Price ($)" value={newWine.price} min="0" onChange={e => setNewWine({ ...newWine, price: e.target.value })} style={{ ...inputStyle, marginBottom: '20px' }} />
+            <p style={{ margin: '0 0 20px', color: C.muted, fontSize: '13px' }}>AI will fetch region, tasting notes, type and peak window.</p>
+            <input type="text" placeholder="Wine name (e.g. Barolo, Ch' + String.fromCharCode(226) + 'teau Margaux)" value={newWine.name} onChange={function(e) { setNewWine({ ...newWine, name: e.target.value }); }} style={inputStyle} />
+            <input type="number" placeholder="Vintage year" value={newWine.vintage} onChange={function(e) { setNewWine({ ...newWine, vintage: e.target.value }); }} style={inputStyle} />
+            <input type="number" placeholder="Price ($)" value={newWine.price} min="0" onChange={function(e) { setNewWine({ ...newWine, price: e.target.value }); }} style={{ ...inputStyle, marginBottom: '20px' }} />
             <button onClick={handleAddWine} style={{ width: '100%', padding: '14px', background: C.burgundy, color: C.white, border: 'none', borderRadius: '12px', fontWeight: '500', fontSize: '15px', cursor: 'pointer', marginBottom: '10px' }}>
               Add to Cellar
             </button>
-            <button onClick={() => setShowAddForm(false)} style={{ width: '100%', padding: '14px', background: 'none', color: C.muted, border: `1px solid ${C.border}`, borderRadius: '12px', fontSize: '15px', cursor: 'pointer' }}>
+            <button onClick={function() { setShowAddForm(false); }} style={{ width: '100%', padding: '14px', background: 'none', color: C.muted, border: '1px solid ' + C.border, borderRadius: '12px', fontSize: '15px', cursor: 'pointer' }}>
               Cancel
             </button>
           </div>
