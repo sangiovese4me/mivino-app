@@ -603,12 +603,11 @@ export default function MiVinoApp() {
           padding: '12px 16px', textAlign: 'center', zIndex: 3000,
         }}>
           <p style={{ margin: 0, color: '#8a5000', fontSize: '13px', lineHeight: '1.5' }}>
-            For the best experience (camera, scanning), open MiVino in Safari.
+           For the best experience (camera, scanning), open MiVino in your browser.
             <br />
             <span style={{ fontSize: '12px', opacity: 0.8 }}>
-              Tap the <strong>{'\u2022\u2022\u2022'}</strong> menu above and choose "Open in Safari" or "Open in Browser"
+              Tap the <strong>{'\u2022\u2022\u2022'}</strong> menu above and choose "Open in Browser"
             </span>
-          </p>
         </div>
       )}
 
