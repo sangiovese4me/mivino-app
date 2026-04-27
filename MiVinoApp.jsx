@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Trash2, ChevronDown, ChevronUp, Loader, Camera, X } from 'lucide-react';
+import InstallPrompt from './InstallPrompt';
 import { useUser, useClerk } from '@clerk/nextjs';
 
 const currentYear = new Date().getFullYear();
@@ -1001,6 +1001,8 @@ export default function MiVinoApp() {
           </div>
         </div>
       )}
+
+      <InstallPrompt />
     </div>
   );
 }
