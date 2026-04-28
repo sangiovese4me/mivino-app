@@ -608,6 +608,7 @@ export default function MiVinoApp() {
             <span style={{ fontSize: '12px', opacity: 0.8 }}>
               Tap the <strong>{'\u2022\u2022\u2022'}</strong> menu above and choose "Open in Browser"
             </span>
+          </p>
         </div>
       )}
 
