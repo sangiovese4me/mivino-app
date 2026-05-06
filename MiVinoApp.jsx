@@ -894,17 +894,6 @@ export default function MiVinoApp() {
                             </p>
                             <p style={{ margin: 0, color: C.body, fontSize: '13px' }}>{wine.aiData.peakSummary}</p>
                           </div>
-                          {wine.aiData.wineryUrl && (
-                            <div>
-                              <p style={{ margin: '0 0 8px', color: C.muted, fontSize: '10px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Links</p>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                <a href={wine.aiData.wineryUrl} target="_blank" rel="noopener noreferrer"
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: C.cream, color: C.burgundy, fontSize: '12px', padding: '6px 12px', borderRadius: '20px', border: '1px solid ' + C.border, textDecoration: 'none', fontWeight: '500' }}>
-                                  {'\uD83C\uDF77'} Winery Website
-                                </a>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
